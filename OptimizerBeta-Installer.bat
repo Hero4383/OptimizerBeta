@@ -2,12 +2,31 @@
 echo DEBUG: Script starting...
 echo DEBUG: Enabling delayed expansion...
 setlocal EnableDelayedExpansion
-if !errorlevel! neq 0 (
-    echo ERROR: Failed to enable delayed expansion
-    echo WARNING: Continuing anyway...
-)
+echo DEBUG: Delayed expansion enabled
+
+REM ================================================================================================
+REM CONFIGURATION - MUST BE SET FIRST
+REM ================================================================================================
+echo DEBUG: Setting configuration variables...
+
+REM Replace YOUR_TOKEN_HERE with the token provided by the developer
+set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
+
+REM GitHub repository information (DO NOT CHANGE)
+set "REPO_OWNER=Hero4383"
+set "REPO_NAME=Optimizer"
+set "PLUGIN_NAME=optimizer-1.0-SNAPSHOT.jar"
+
+REM Key validation endpoint (for one-time use keys)
+set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/contents/used_keys.txt"
+
+echo DEBUG: Configuration set
+echo DEBUG: Token: !GITHUB_TOKEN:~0,10!...
+echo DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
+
 echo DEBUG: Setting window title...
 title OptimizerBeta Plugin Installer
+echo DEBUG: Title set
 
 :: ================================================================================================
 :: OptimizerBeta RuneLite Plugin Installer
@@ -27,20 +46,6 @@ title OptimizerBeta Plugin Installer
 :: 3. Follow the on-screen prompts
 :: ================================================================================================
 
-:: ================================================================================================
-:: CONFIGURATION - EDIT THIS SECTION
-:: ================================================================================================
-
-:: Replace YOUR_TOKEN_HERE with the token provided by the developer
-set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
-
-:: GitHub repository information (DO NOT CHANGE)
-set "REPO_OWNER=Hero4383"
-set "REPO_NAME=Optimizer"
-set "PLUGIN_NAME=optimizer-1.0-SNAPSHOT.jar"
-
-:: Key validation endpoint (for one-time use keys)
-set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/contents/used_keys.txt"
 
 :: ================================================================================================
 :: INITIALIZATION AND LOGGING SETUP
@@ -48,13 +53,19 @@ set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/cont
 
 :: Create timestamp for logs
 echo DEBUG: Creating timestamp...
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
-if "!dt!"=="" (
-    echo ERROR: Failed to get system time
-    set "timestamp=unknown_time"
-) else (
+set "timestamp=manual_timestamp"
+echo DEBUG: Attempting to get system time...
+for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value 2^>nul') do (
+    if not "%%a"=="" set "dt=%%a"
+)
+echo DEBUG: dt value: !dt!
+if defined dt (
+    echo DEBUG: Processing timestamp...
     set "timestamp=!dt:~0,4!-!dt:~4,2!-!dt:~6,2!_!dt:~8,2!-!dt:~10,2!-!dt:~12,2!"
     echo DEBUG: Timestamp created: !timestamp!
+) else (
+    echo WARNING: Could not get system time, using default
+    set "timestamp=default_time"
 )
 
 :: Set up log files
@@ -69,17 +80,28 @@ echo DEBUG: Debug log: !DEBUG_LOG!
 
 :: Initialize logging
 echo DEBUG: Initializing log file...
-echo ================================================================================================ > "!LOG_FILE!" 2>&1
-if !errorlevel! neq 0 (
-    echo ERROR: Cannot write to log file: !LOG_FILE!
-    echo Trying alternative location...
-    set "LOG_FILE=%TEMP%\optimizer_install_!timestamp!.log"
-    echo DEBUG: New log location: !LOG_FILE!
-)
-echo OptimizerBeta Plugin Installer - Started at %date% %time% >> "!LOG_FILE!" 2>&1
-echo ================================================================================================ >> "!LOG_FILE!" 2>&1
+echo DEBUG: Trying to write to: !LOG_FILE!
 
-echo [%time%] Starting OptimizerBeta Plugin Installer... >> "!LOG_FILE!" 2>&1
+REM First create the file with echo
+echo Log Start > "!LOG_FILE!" 2>nul
+if not exist "!LOG_FILE!" (
+    echo WARNING: Cannot write to USERPROFILE, trying TEMP...
+    set "LOG_FILE=%TEMP%\optimizer_install_!timestamp!.log"
+    set "ERROR_LOG=%TEMP%\optimizer_error_!timestamp!.log"
+    set "DEBUG_LOG=%TEMP%\optimizer_debug_!timestamp!.log"
+    echo DEBUG: New log location: !LOG_FILE!
+    echo Log Start > "!LOG_FILE!" 2>nul
+)
+
+if exist "!LOG_FILE!" (
+    echo DEBUG: Log file created successfully
+    echo ================================================================================================ >> "!LOG_FILE!" 2>nul
+    echo OptimizerBeta Plugin Installer - Started at %date% %time% >> "!LOG_FILE!" 2>nul
+    echo ================================================================================================ >> "!LOG_FILE!" 2>nul
+) else (
+    echo WARNING: Could not create log file, continuing without logging
+    set "LOG_FILE=nul"
+)
 
 :: Display header
 cls
@@ -102,7 +124,9 @@ echo  DEBUG: Token configured: !GITHUB_TOKEN!
 echo  DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
 echo.
 echo  Starting system verification automatically...
-timeout /t 2 >nul
+echo DEBUG: Waiting 2 seconds...
+timeout /t 2 /nobreak >nul 2>&1
+echo DEBUG: Wait complete
 
 echo.
 echo  DEBUG: Starting system verification...
@@ -111,26 +135,30 @@ echo  DEBUG: Starting system verification...
 :: SYSTEM VERIFICATION AND DIAGNOSTICS
 :: ================================================================================================
 
-echo [%time%] Running system diagnostics... >> "%LOG_FILE%"
+echo [%time%] Running system diagnostics... >> "!LOG_FILE!" 2>nul
 echo.
 echo [1/6] Running system diagnostics...
 echo DEBUG: About to check Windows version...
 
 :: Check Windows version
 echo DEBUG: Checking Windows version...
-for /f "tokens=4-7 delims=[]. " %%i in ('ver') do (
+set "WINDOWS_VERSION=Unknown"
+for /f "tokens=4-7 delims=[]. " %%i in ('ver 2^>nul') do (
     set "WINDOWS_VERSION=%%i.%%j.%%k.%%l"
-    echo [%time%] Windows Version: !WINDOWS_VERSION! >> "%LOG_FILE%"
-    echo DEBUG: Windows Version: !WINDOWS_VERSION!
 )
+echo DEBUG: Windows Version: !WINDOWS_VERSION!
+echo [%time%] Windows Version: !WINDOWS_VERSION! >> "!LOG_FILE!" 2>nul
 
 :: Check if running as administrator
+echo DEBUG: Checking admin status...
 net session >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [%time%] Running with Administrator privileges >> "%LOG_FILE%"
+    echo DEBUG: Running with Administrator privileges
+    echo [%time%] Running with Administrator privileges >> "!LOG_FILE!" 2>nul
     set "IS_ADMIN=true"
 ) else (
-    echo [%time%] NOT running as Administrator >> "%LOG_FILE%"
+    echo DEBUG: NOT running as Administrator
+    echo [%time%] NOT running as Administrator >> "!LOG_FILE!" 2>nul
     set "IS_ADMIN=false"
     echo.
     echo  WARNING: Not running as Administrator. This may cause permission issues.
@@ -140,15 +168,15 @@ if %errorlevel% equ 0 (
 
 :: Check internet connectivity
 echo DEBUG: Testing internet connectivity...
-echo [%time%] Testing internet connectivity... >> "%LOG_FILE%"
+echo [%time%] Testing internet connectivity... >> "!LOG_FILE!" 2>nul
 ping -n 1 github.com >nul 2>&1
 set "ping_result=%errorlevel%"
 if %ping_result% equ 0 (
-    echo [%time%] Internet connectivity: OK >> "%LOG_FILE%"
+    echo [%time%] Internet connectivity: OK >> "!LOG_FILE!" 2>nul
     echo DEBUG: Internet connectivity: OK
     set "INTERNET_OK=true"
 ) else (
-    echo [%time%] Internet connectivity: FAILED (exit code: %ping_result%) >> "%LOG_FILE%"
+    echo [%time%] Internet connectivity: FAILED (exit code: %ping_result%) >> "!LOG_FILE!" 2>nul
     echo DEBUG: Internet connectivity: FAILED (exit code: %ping_result%)
     echo WARNING: Cannot ping GitHub, but continuing anyway...
     echo This might be due to firewall settings blocking ping.
@@ -160,11 +188,11 @@ echo DEBUG: Checking for download tools...
 curl --version >nul 2>&1
 set "curl_check=%errorlevel%"
 if %curl_check% equ 0 (
-    echo [%time%] curl is available >> "%LOG_FILE%"
+    echo [%time%] curl is available >> "!LOG_FILE!" 2>nul
     echo DEBUG: curl is available
     set "CURL_AVAILABLE=true"
 ) else (
-    echo [%time%] curl is NOT available (exit code: %curl_check%), checking for PowerShell... >> "%LOG_FILE%"
+    echo [%time%] curl is NOT available (exit code: %curl_check%), checking for PowerShell... >> "!LOG_FILE!" 2>nul
     echo DEBUG: curl is NOT available (exit code: %curl_check%), checking for PowerShell...
     set "CURL_AVAILABLE=false"
     
@@ -172,11 +200,11 @@ if %curl_check% equ 0 (
     powershell -Command "Get-Command Invoke-WebRequest" >nul 2>&1
     set "ps_check=%errorlevel%"
     if %ps_check% equ 0 (
-        echo [%time%] PowerShell Invoke-WebRequest is available >> "%LOG_FILE%"
+        echo [%time%] PowerShell Invoke-WebRequest is available >> "!LOG_FILE!" 2>nul
         echo DEBUG: PowerShell Invoke-WebRequest is available
         set "POWERSHELL_AVAILABLE=true"
     ) else (
-        echo [%time%] Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%) >> "%LOG_FILE%"
+        echo [%time%] Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%) >> "!LOG_FILE!" 2>nul
         echo DEBUG: Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%)
         echo ERROR: Cannot find download tools (curl or PowerShell).
         echo This installer requires Windows 10 or newer, or curl to be installed.
@@ -195,10 +223,10 @@ echo [2/6] Validating access token...
 echo DEBUG: Starting token validation...
 echo DEBUG: Token length: 
 echo !GITHUB_TOKEN! | find /c /v "" 
-echo [%time%] Validating GitHub token... >> "%LOG_FILE%"
+echo [%time%] Validating GitHub token... >> "!LOG_FILE!" 2>nul
 
 if "!GITHUB_TOKEN!"=="YOUR_TOKEN_HERE" (
-    echo [%time%] ERROR: Token not configured >> "%LOG_FILE%"
+    echo [%time%] ERROR: Token not configured >> "!LOG_FILE!" 2>nul
     echo DEBUG: ERROR - Token not configured
     echo.
     echo  ERROR: GitHub token not configured!
@@ -220,7 +248,7 @@ echo DEBUG: Validating token format...
 echo !GITHUB_TOKEN! | findstr /R "^ghp_[A-Za-z0-9]*$" >nul
 set "token_format_check=%errorlevel%"
 if %token_format_check% neq 0 (
-    echo [%time%] ERROR: Invalid token format (exit code: %token_format_check%) >> "%LOG_FILE%"
+    echo [%time%] ERROR: Invalid token format (exit code: %token_format_check%) >> "!LOG_FILE!" 2>nul
     echo DEBUG: ERROR - Invalid token format (exit code: %token_format_check%)
     echo DEBUG: Token starts with: !GITHUB_TOKEN:~0,4!
     echo.
@@ -236,11 +264,11 @@ if %token_format_check% neq 0 (
     echo.
 )
 
-echo [%time%] Token format appears valid >> "%LOG_FILE%"
+echo [%time%] Token format appears valid >> "!LOG_FILE!" 2>nul
 
 :: Test token by making a simple API call
 echo DEBUG: Testing token access to repository...
-echo [%time%] Testing token access to repository... >> "%LOG_FILE%"
+echo [%time%] Testing token access to repository... >> "!LOG_FILE!" 2>nul
 
 set "test_url=https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME!"
 echo DEBUG: Testing URL: !test_url!
@@ -259,7 +287,7 @@ if "!CURL_AVAILABLE!"=="true" (
 )
 
 if !token_test_result! neq 0 (
-    echo [%time%] ERROR: Token authentication failed (exit code: !token_test_result!) >> "%LOG_FILE%"
+    echo [%time%] ERROR: Token authentication failed (exit code: !token_test_result!) >> "!LOG_FILE!" 2>nul
     echo DEBUG: ERROR - Token authentication failed (exit code: !token_test_result!)
     echo.
     echo  WARNING: Cannot access repository with provided token!
@@ -275,7 +303,7 @@ if !token_test_result! neq 0 (
     echo DEBUG: Token authentication successful!
 )
 
-echo [%time%] Token authentication successful >> "%LOG_FILE%"
+echo [%time%] Token authentication successful >> "!LOG_FILE!" 2>nul
 
 :: ================================================================================================
 :: ONE-TIME KEY VALIDATION
@@ -283,7 +311,7 @@ echo [%time%] Token authentication successful >> "%LOG_FILE%"
 
 echo.
 echo [2.5/6] Validating one-time key usage...
-echo [%time%] Checking if key has been used before... >> "%LOG_FILE%"
+echo [%time%] Checking if key has been used before... >> "!LOG_FILE!" 2>nul
 
 :: Create a unique key identifier based on the token (hash-like)
 set "KEY_ID="
@@ -294,18 +322,18 @@ for /f "delims=" %%a in ('echo !GITHUB_TOKEN! ^| findstr /R "ghp_.*"') do (
 )
 
 if "!KEY_ID!"=="" (
-    echo [%time%] ERROR: Could not generate key identifier >> "%LOG_FILE%"
+    echo [%time%] ERROR: Could not generate key identifier >> "!LOG_FILE!" 2>nul
     echo  WARNING: Invalid key format for validation - skipping key validation.
     set "KEY_ID=unknown_key"
 )
 
-echo [%time%] Generated key identifier: !KEY_ID! >> "%LOG_FILE%"
+echo [%time%] Generated key identifier: !KEY_ID! >> "!LOG_FILE!" 2>nul
 
 :: Check if key has been used (download used_keys.txt from OptimizerBeta repo)
 set "USED_KEYS_FILE=%TEMP%\used_keys.txt"
 set "key_already_used=false"
 
-echo [%time%] Downloading used keys list... >> "%LOG_FILE%"
+echo [%time%] Downloading used keys list... >> "!LOG_FILE!" 2>nul
 
 if "!CURL_AVAILABLE!"=="true" (
     curl -s -H "Authorization: token !GITHUB_TOKEN!" -H "Accept: application/vnd.github.v3.raw" "!KEY_VALIDATION_URL!" > "!USED_KEYS_FILE!" 2>&1
@@ -317,16 +345,16 @@ if "!CURL_AVAILABLE!"=="true" (
 
 :: If file doesn't exist (404), that's OK - means no keys used yet
 if !download_result! neq 0 (
-    echo [%time%] Used keys file not found - creating new tracking >> "%LOG_FILE%"
+    echo [%time%] Used keys file not found - creating new tracking >> "!LOG_FILE!" 2>nul
     echo # Used Beta Keys > "!USED_KEYS_FILE!"
     echo # Format: key_id timestamp >> "!USED_KEYS_FILE!"
 ) else (
-    echo [%time%] Successfully downloaded used keys list >> "%LOG_FILE%"
+    echo [%time%] Successfully downloaded used keys list >> "!LOG_FILE!" 2>nul
     
     :: Check if this key ID is already in the file
     findstr /C:"!KEY_ID!" "!USED_KEYS_FILE!" >nul 2>&1
     if !errorlevel! equ 0 (
-        echo [%time%] ERROR: Key has already been used >> "%LOG_FILE%"
+        echo [%time%] ERROR: Key has already been used >> "!LOG_FILE!" 2>nul
         set "key_already_used=true"
     )
 )
@@ -343,10 +371,10 @@ if "!key_already_used!"=="true" (
     echo.
 )
 
-echo [%time%] Key validation passed - key is unused >> "%LOG_FILE%"
+echo [%time%] Key validation passed - key is unused >> "!LOG_FILE!" 2>nul
 
 :: Mark key as used by updating the used_keys.txt file
-echo [%time%] Marking key as used... >> "%LOG_FILE%"
+echo [%time%] Marking key as used... >> "!LOG_FILE!" 2>nul
 echo !KEY_ID! %date% %time% >> "!USED_KEYS_FILE!"
 
 :: Upload updated used_keys.txt back to the repo
@@ -385,14 +413,14 @@ if exist "!UPDATED_CONTENT_B64!" (
     )
     
     if !update_result! equ 0 (
-        echo [%time%] Successfully marked key as used >> "%LOG_FILE%"
+        echo [%time%] Successfully marked key as used >> "!LOG_FILE!" 2>nul
         echo  ^> Key marked as used - proceeding with installation
     ) else (
-        echo [%time%] WARNING: Could not update used keys list >> "%LOG_FILE%"
+        echo [%time%] WARNING: Could not update used keys list >> "!LOG_FILE!" 2>nul
         echo  ^> WARNING: Could not mark key as used, but proceeding...
     )
 ) else (
-    echo [%time%] WARNING: Could not encode content for key tracking >> "%LOG_FILE%"
+    echo [%time%] WARNING: Could not encode content for key tracking >> "!LOG_FILE!" 2>nul
     echo  ^> WARNING: Key tracking failed, but proceeding with installation...
 )
 
@@ -407,7 +435,7 @@ del "!TEMP_SHA_JSON!" >nul 2>&1
 
 echo.
 echo [3/6] Detecting RuneLite installation...
-echo [%time%] Searching for RuneLite installation... >> "%LOG_FILE%"
+echo [%time%] Searching for RuneLite installation... >> "!LOG_FILE!" 2>nul
 
 set "RUNELITE_DIR="
 set "PLUGINS_DIR="
@@ -425,19 +453,19 @@ set "search_paths[6]=%PROGRAMFILES(X86)%\RuneLite"
 for /L %%i in (0,1,6) do (
     if defined search_paths[%%i] (
         set "test_path=!search_paths[%%i]!"
-        echo [%time%] Checking: !test_path! >> "%LOG_FILE%"
+        echo [%time%] Checking: !test_path! >> "!LOG_FILE!" 2>nul
         
         if exist "!test_path!" (
-            echo [%time%] Found RuneLite directory: !test_path! >> "%LOG_FILE%"
+            echo [%time%] Found RuneLite directory: !test_path! >> "!LOG_FILE!" 2>nul
             set "RUNELITE_DIR=!test_path!"
             
             :: Check for plugins subdirectory
             if exist "!test_path!\plugins" (
                 set "PLUGINS_DIR=!test_path!\plugins"
-                echo [%time%] Found plugins directory: !PLUGINS_DIR! >> "%LOG_FILE%"
+                echo [%time%] Found plugins directory: !PLUGINS_DIR! >> "!LOG_FILE!" 2>nul
                 goto :runelite_found
             ) else (
-                echo [%time%] Plugins directory not found, will create it >> "%LOG_FILE%"
+                echo [%time%] Plugins directory not found, will create it >> "!LOG_FILE!" 2>nul
                 set "PLUGINS_DIR=!test_path!\plugins"
                 goto :runelite_found
             )
@@ -446,7 +474,7 @@ for /L %%i in (0,1,6) do (
 )
 
 :: If not found, prompt user
-echo [%time%] RuneLite not found in standard locations >> "%LOG_FILE%"
+echo [%time%] RuneLite not found in standard locations >> "!LOG_FILE!" 2>nul
 echo.
 echo  RuneLite installation not found in standard locations.
 echo.
@@ -463,7 +491,7 @@ echo.
 set /p "user_path=Enter RuneLite path (or press Enter to cancel): "
 
 if "!user_path!"=="" (
-    echo [%time%] User cancelled RuneLite path selection >> "%LOG_FILE%"
+    echo [%time%] User cancelled RuneLite path selection >> "!LOG_FILE!" 2>nul
     echo  Installation cancelled by user.
     echo CONTINUING ANYWAY FOR DEBUGGING...
     echo.
@@ -471,7 +499,7 @@ if "!user_path!"=="" (
 
 :: Validate user-provided path
 if not exist "!user_path!" (
-    echo [%time%] User-provided path does not exist: !user_path! >> "%LOG_FILE%"
+    echo [%time%] User-provided path does not exist: !user_path! >> "!LOG_FILE!" 2>nul
     echo  ERROR: The specified path does not exist: !user_path!
     echo CONTINUING ANYWAY FOR DEBUGGING...
     echo.
@@ -479,7 +507,7 @@ if not exist "!user_path!" (
 
 set "RUNELITE_DIR=!user_path!"
 set "PLUGINS_DIR=!user_path!\plugins"
-echo [%time%] Using user-provided RuneLite directory: !RUNELITE_DIR! >> "%LOG_FILE%"
+echo [%time%] Using user-provided RuneLite directory: !RUNELITE_DIR! >> "!LOG_FILE!" 2>nul
 
 :runelite_found
 echo  ^> RuneLite found: !RUNELITE_DIR!
@@ -487,10 +515,10 @@ echo  ^> Plugins directory: !PLUGINS_DIR!
 
 :: Create plugins directory if it doesn't exist
 if not exist "!PLUGINS_DIR!" (
-    echo [%time%] Creating plugins directory: !PLUGINS_DIR! >> "%LOG_FILE%"
+    echo [%time%] Creating plugins directory: !PLUGINS_DIR! >> "!LOG_FILE!" 2>nul
     mkdir "!PLUGINS_DIR!" 2>nul
     if !errorlevel! neq 0 (
-        echo [%time%] ERROR: Failed to create plugins directory >> "%LOG_FILE%"
+        echo [%time%] ERROR: Failed to create plugins directory >> "!LOG_FILE!" 2>nul
         echo  ERROR: Cannot create plugins directory: !PLUGINS_DIR!
         echo  This may be a permissions issue. Try running as Administrator.
         echo CONTINUING ANYWAY FOR DEBUGGING...
@@ -505,31 +533,31 @@ if not exist "!PLUGINS_DIR!" (
 
 echo.
 echo [4/6] Checking for existing plugin...
-echo [%time%] Checking for existing OptimizerBeta plugin... >> "%LOG_FILE%"
+echo [%time%] Checking for existing OptimizerBeta plugin... >> "!LOG_FILE!" 2>nul
 
 set "EXISTING_PLUGIN=!PLUGINS_DIR!\!PLUGIN_NAME!"
 set "BACKUP_CREATED=false"
 
 if exist "!EXISTING_PLUGIN!" (
-    echo [%time%] Found existing plugin: !EXISTING_PLUGIN! >> "%LOG_FILE%"
+    echo [%time%] Found existing plugin: !EXISTING_PLUGIN! >> "!LOG_FILE!" 2>nul
     echo  ^> Found existing OptimizerBeta plugin
     
     :: Create backup
     set "BACKUP_NAME=!PLUGIN_NAME!.backup.%timestamp%"
     set "BACKUP_PATH=!PLUGINS_DIR!\!BACKUP_NAME!"
     
-    echo [%time%] Creating backup: !BACKUP_PATH! >> "%LOG_FILE%"
+    echo [%time%] Creating backup: !BACKUP_PATH! >> "!LOG_FILE!" 2>nul
     copy "!EXISTING_PLUGIN!" "!BACKUP_PATH!" >nul 2>&1
     if !errorlevel! equ 0 (
         echo  ^> Backup created: !BACKUP_NAME!
-        echo [%time%] Backup successful >> "%LOG_FILE%"
+        echo [%time%] Backup successful >> "!LOG_FILE!" 2>nul
         set "BACKUP_CREATED=true"
     ) else (
         echo  ^> WARNING: Could not create backup
-        echo [%time%] WARNING: Backup failed >> "%LOG_FILE%"
+        echo [%time%] WARNING: Backup failed >> "!LOG_FILE!" 2>nul
     )
 ) else (
-    echo [%time%] No existing plugin found >> "%LOG_FILE%"
+    echo [%time%] No existing plugin found >> "!LOG_FILE!" 2>nul
     echo  ^> No existing plugin found
 )
 
@@ -539,7 +567,7 @@ if exist "!EXISTING_PLUGIN!" (
 
 echo.
 echo [5/6] Downloading latest plugin...
-echo [%time%] Starting plugin download... >> "%LOG_FILE%"
+echo [%time%] Starting plugin download... >> "!LOG_FILE!" 2>nul
 
 :: Use direct download from releases folder (simpler and more reliable)
 echo DEBUG: Setting up download URL...
@@ -550,8 +578,12 @@ set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/mas
 echo DEBUG: Trying master branch URL: !DOWNLOAD_URL!
 
 :: Quick test with curl to see if it exists
+echo DEBUG: Testing URL with curl...
+set "STATUS_CODE=000"
 curl -s -o nul -w "%%{http_code}" -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" > "%TEMP%\status_code.txt" 2>&1
-set /p STATUS_CODE=<"%TEMP%\status_code.txt"
+if exist "%TEMP%\status_code.txt" (
+    set /p STATUS_CODE=<"%TEMP%\status_code.txt"
+)
 echo DEBUG: Master branch HTTP status: !STATUS_CODE!
 
 if "!STATUS_CODE!" neq "200" (
@@ -559,8 +591,11 @@ if "!STATUS_CODE!" neq "200" (
     set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/main/releases/optimizer-latest.jar"
     echo DEBUG: Trying main branch URL: !DOWNLOAD_URL!
     
+    set "STATUS_CODE2=000"
     curl -s -o nul -w "%%{http_code}" -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" > "%TEMP%\status_code2.txt" 2>&1
-    set /p STATUS_CODE2=<"%TEMP%\status_code2.txt"
+    if exist "%TEMP%\status_code2.txt" (
+        set /p STATUS_CODE2=<"%TEMP%\status_code2.txt"
+    )
     echo DEBUG: Main branch HTTP status: !STATUS_CODE2!
     
     if "!STATUS_CODE2!"=="200" (
@@ -628,7 +663,7 @@ if "!CURL_AVAILABLE!"=="true" (
 )
 
 if !access_test! neq 0 (
-    echo [%time%] ERROR: Cannot access plugin download URL >> "%LOG_FILE%"
+    echo [%time%] ERROR: Cannot access plugin download URL >> "!LOG_FILE!" 2>nul
     echo  ERROR: Cannot access the plugin file from GitHub.
     echo  This could be due to:
     echo  - Network connectivity issues
@@ -640,14 +675,14 @@ if !access_test! neq 0 (
     echo.
 )
 
-echo [%time%] Download URL found: !DOWNLOAD_URL! >> "%LOG_FILE%"
+echo [%time%] Download URL found: !DOWNLOAD_URL! >> "!LOG_FILE!" 2>nul
 echo  ^> Download URL: !DOWNLOAD_URL!
 
 :: Download the plugin
 echo DEBUG: Starting actual download...
 set "TEMP_PLUGIN=%TEMP%\!PLUGIN_NAME!"
 echo DEBUG: Target file: !TEMP_PLUGIN!
-echo [%time%] Downloading to: !TEMP_PLUGIN! >> "!LOG_FILE!"
+echo [%time%] Downloading to: !TEMP_PLUGIN! >> "!LOG_FILE!" 2>nul
 
 if "!CURL_AVAILABLE!"=="true" (
     echo  ^> Downloading with curl...
@@ -679,7 +714,7 @@ if "!CURL_AVAILABLE!"=="true" (
 )
 
 if !download_result! neq 0 (
-    echo [%time%] ERROR: Plugin download failed >> "%LOG_FILE%"
+    echo [%time%] ERROR: Plugin download failed >> "!LOG_FILE!" 2>nul
     echo  ERROR: Failed to download the plugin.
     echo  Check your internet connection and token permissions.
     echo CONTINUING ANYWAY FOR DEBUGGING...
@@ -688,7 +723,7 @@ if !download_result! neq 0 (
 
 :: Verify download
 if not exist "!TEMP_PLUGIN!" (
-    echo [%time%] ERROR: Downloaded file not found >> "%LOG_FILE%"
+    echo [%time%] ERROR: Downloaded file not found >> "!LOG_FILE!" 2>nul
     echo  ERROR: Download completed but file not found.
     echo CONTINUING ANYWAY FOR DEBUGGING...
     echo.
@@ -697,14 +732,14 @@ if not exist "!TEMP_PLUGIN!" (
 :: Check file size (should be more than a few KB for a valid JAR)
 for %%F in ("!TEMP_PLUGIN!") do set "file_size=%%~zF"
 if !file_size! lss 1024 (
-    echo [%time%] ERROR: Downloaded file too small (!file_size! bytes) >> "%LOG_FILE%"
+    echo [%time%] ERROR: Downloaded file too small (!file_size! bytes) >> "!LOG_FILE!" 2>nul
     echo  ERROR: Downloaded file appears to be corrupted or invalid.
     echo  File size: !file_size! bytes (expected: much larger)
     echo CONTINUING ANYWAY FOR DEBUGGING...
     echo.
 )
 
-echo [%time%] Download successful, file size: !file_size! bytes >> "%LOG_FILE%"
+echo [%time%] Download successful, file size: !file_size! bytes >> "!LOG_FILE!" 2>nul
 echo  ^> Download complete (Size: !file_size! bytes)
 
 :: ================================================================================================
@@ -713,12 +748,12 @@ echo  ^> Download complete (Size: !file_size! bytes)
 
 echo.
 echo [6/6] Installing plugin...
-echo [%time%] Installing plugin to: !EXISTING_PLUGIN! >> "%LOG_FILE%"
+echo [%time%] Installing plugin to: !EXISTING_PLUGIN! >> "!LOG_FILE!" 2>nul
 
 :: Copy plugin to RuneLite plugins directory
 copy "!TEMP_PLUGIN!" "!EXISTING_PLUGIN!" >nul 2>&1
 if !errorlevel! neq 0 (
-    echo [%time%] ERROR: Failed to copy plugin to plugins directory >> "%LOG_FILE%"
+    echo [%time%] ERROR: Failed to copy plugin to plugins directory >> "!LOG_FILE!" 2>nul
     echo  ERROR: Cannot install plugin to RuneLite plugins directory.
     echo  This may be a permissions issue.
     echo.
@@ -733,7 +768,7 @@ if !errorlevel! neq 0 (
 
 :: Verify installation
 if not exist "!EXISTING_PLUGIN!" (
-    echo [%time%] ERROR: Plugin not found after installation >> "%LOG_FILE%"
+    echo [%time%] ERROR: Plugin not found after installation >> "!LOG_FILE!" 2>nul
     echo  ERROR: Installation failed - plugin not found in plugins directory.
     echo CONTINUING ANYWAY FOR DEBUGGING...
     echo.
@@ -742,11 +777,11 @@ if not exist "!EXISTING_PLUGIN!" (
 :: Check installed file size
 for %%F in ("!EXISTING_PLUGIN!") do set "installed_size=%%~zF"
 if !installed_size! neq !file_size! (
-    echo [%time%] WARNING: Installed file size mismatch >> "%LOG_FILE%"
+    echo [%time%] WARNING: Installed file size mismatch >> "!LOG_FILE!" 2>nul
     echo  WARNING: Installed file size (!installed_size!) differs from download (!file_size!)
 )
 
-echo [%time%] Plugin installation successful >> "%LOG_FILE%"
+echo [%time%] Plugin installation successful >> "!LOG_FILE!" 2>nul
 echo  ^> Plugin installed successfully!
 
 :: Clean up temporary files
@@ -780,8 +815,8 @@ echo  - Report issues at: https://github.com/!REPO_OWNER!/!REPO_NAME!/issues
 echo  - Include the log file and error details
 echo.
 
-echo [%time%] Installation completed successfully >> "%LOG_FILE%"
-echo ================================================================================================ >> "%LOG_FILE%"
+echo [%time%] Installation completed successfully >> "!LOG_FILE!" 2>nul
+echo ================================================================================================ >> "!LOG_FILE!" 2>nul
 
 echo  Debug completed! Window will close in 5 seconds...
 timeout /t 5 >nul
@@ -793,7 +828,7 @@ goto :end
 :: ================================================================================================
 
 :end
-echo [%time%] Installer finished >> "%LOG_FILE%"
+echo [%time%] Installer finished >> "!LOG_FILE!" 2>nul
 echo.
 echo ================================================================================================
 echo INSTALLER COMPLETE - Check output above for any errors
