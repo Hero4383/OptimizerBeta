@@ -1,0 +1,576 @@
+@echo off
+setlocal EnableDelayedExpansion
+title OptimizerBeta Plugin Installer
+
+:: ================================================================================================
+:: OptimizerBeta RuneLite Plugin Installer
+:: 
+:: This script automatically downloads and installs the OptimizerBeta plugin for RuneLite
+:: Features:
+:: - Automatic RuneLite detection
+:: - Plugin download from GitHub
+:: - Installation verification
+:: - Extensive error handling and logging
+:: - Backup of existing versions
+:: - Debug information for troubleshooting
+::
+:: Instructions:
+:: 1. Edit this file and replace YOUR_TOKEN_HERE with the token provided by the developer
+:: 2. Double-click this file to run the installer
+:: 3. Follow the on-screen prompts
+:: ================================================================================================
+
+:: ================================================================================================
+:: CONFIGURATION - EDIT THIS SECTION
+:: ================================================================================================
+
+:: Replace YOUR_TOKEN_HERE with the token provided by the developer
+set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
+
+:: GitHub repository information (DO NOT CHANGE)
+set "REPO_OWNER=Hero4383"
+set "REPO_NAME=OptimizerBeta"
+set "PLUGIN_NAME=optimizer-1.0-SNAPSHOT.jar"
+
+:: ================================================================================================
+:: INITIALIZATION AND LOGGING SETUP
+:: ================================================================================================
+
+:: Create timestamp for logs
+for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
+set "timestamp=%dt:~0,4%-%dt:~4,2%-%dt:~6,2%_%dt:~8,2%-%dt:~10,2%-%dt:~12,2%"
+
+:: Set up log files
+set "LOG_FILE=optimizer_install_%timestamp%.log"
+set "ERROR_LOG=optimizer_error_%timestamp%.log"
+set "DEBUG_LOG=optimizer_debug_%timestamp%.log"
+
+:: Initialize logging
+echo ================================================================================================ > "%LOG_FILE%"
+echo OptimizerBeta Plugin Installer - Started at %date% %time% >> "%LOG_FILE%"
+echo ================================================================================================ >> "%LOG_FILE%"
+
+echo [%time%] Starting OptimizerBeta Plugin Installer... >> "%LOG_FILE%"
+
+:: Display header
+cls
+echo.
+echo  ================================================================================================
+echo   OptimizerBeta Plugin Installer for RuneLite
+echo  ================================================================================================
+echo.
+echo  This installer will automatically:
+echo   ^> Detect your RuneLite installation
+echo   ^> Download the latest OptimizerBeta plugin
+echo   ^> Install the plugin to the correct directory
+echo   ^> Verify the installation
+echo   ^> Create backups of existing versions
+echo.
+echo  Installation logs will be saved for troubleshooting.
+echo.
+echo  Press any key to continue or Ctrl+C to cancel...
+pause >nul
+
+:: ================================================================================================
+:: SYSTEM VERIFICATION AND DIAGNOSTICS
+:: ================================================================================================
+
+echo [%time%] Running system diagnostics... >> "%LOG_FILE%"
+echo.
+echo [1/6] Running system diagnostics...
+
+:: Check Windows version
+for /f "tokens=4-7 delims=[]. " %%i in ('ver') do (
+    set "WINDOWS_VERSION=%%i.%%j.%%k.%%l"
+    echo [%time%] Windows Version: !WINDOWS_VERSION! >> "%LOG_FILE%"
+)
+
+:: Check if running as administrator
+net session >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [%time%] Running with Administrator privileges >> "%LOG_FILE%"
+    set "IS_ADMIN=true"
+) else (
+    echo [%time%] NOT running as Administrator >> "%LOG_FILE%"
+    set "IS_ADMIN=false"
+    echo.
+    echo  WARNING: Not running as Administrator. This may cause permission issues.
+    echo  If installation fails, try right-clicking this file and selecting "Run as administrator"
+    echo.
+)
+
+:: Check internet connectivity
+echo [%time%] Testing internet connectivity... >> "%LOG_FILE%"
+ping -n 1 github.com >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [%time%] Internet connectivity: OK >> "%LOG_FILE%"
+    set "INTERNET_OK=true"
+) else (
+    echo [%time%] Internet connectivity: FAILED >> "%LOG_FILE%"
+    set "INTERNET_OK=false"
+    echo.
+    echo  ERROR: Cannot connect to GitHub. Please check your internet connection.
+    echo  Debug: ping github.com failed
+    echo.
+    goto :error_exit
+)
+
+:: Check if curl is available
+curl --version >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [%time%] curl is available >> "%LOG_FILE%"
+    set "CURL_AVAILABLE=true"
+) else (
+    echo [%time%] curl is NOT available, checking for PowerShell... >> "%LOG_FILE%"
+    set "CURL_AVAILABLE=false"
+    
+    :: Check PowerShell as fallback
+    powershell -Command "Get-Command Invoke-WebRequest" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [%time%] PowerShell Invoke-WebRequest is available >> "%LOG_FILE%"
+        set "POWERSHELL_AVAILABLE=true"
+    ) else (
+        echo [%time%] Neither curl nor PowerShell available for downloads >> "%LOG_FILE%"
+        echo.
+        echo  ERROR: Cannot find download tools (curl or PowerShell).
+        echo  This installer requires Windows 10 or newer, or curl to be installed.
+        echo.
+        goto :error_exit
+    )
+)
+
+:: ================================================================================================
+:: TOKEN VALIDATION
+:: ================================================================================================
+
+echo.
+echo [2/6] Validating access token...
+echo [%time%] Validating GitHub token... >> "%LOG_FILE%"
+
+if "!GITHUB_TOKEN!"=="YOUR_TOKEN_HERE" (
+    echo [%time%] ERROR: Token not configured >> "%LOG_FILE%"
+    echo.
+    echo  ERROR: GitHub token not configured!
+    echo.
+    echo  Instructions:
+    echo  1. Right-click this file and select "Edit"
+    echo  2. Find the line: set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
+    echo  3. Replace YOUR_TOKEN_HERE with the token provided by the developer
+    echo  4. Save the file and run it again
+    echo.
+    echo  The token should start with 'ghp_' and be about 40 characters long.
+    echo.
+    goto :error_exit
+)
+
+:: Validate token format
+echo !GITHUB_TOKEN! | findstr /R "^ghp_[A-Za-z0-9]*$" >nul
+if %errorlevel% neq 0 (
+    echo [%time%] ERROR: Invalid token format >> "%LOG_FILE%"
+    echo.
+    echo  ERROR: Invalid token format!
+    echo.
+    echo  The token should:
+    echo  - Start with 'ghp_'
+    echo  - Be approximately 40 characters long
+    echo  - Contain only letters and numbers
+    echo.
+    echo  Please check the token provided by the developer.
+    echo.
+    goto :error_exit
+)
+
+echo [%time%] Token format appears valid >> "%LOG_FILE%"
+
+:: Test token by making a simple API call
+echo [%time%] Testing token access to repository... >> "%LOG_FILE%"
+
+if "!CURL_AVAILABLE!"=="true" (
+    curl -s -H "Authorization: token !GITHUB_TOKEN!" https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME! >nul 2>&1
+    set "token_test_result=!errorlevel!"
+) else (
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { Invoke-WebRequest -Uri 'https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME!' -Headers $headers -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
+    set "token_test_result=!errorlevel!"
+)
+
+if !token_test_result! neq 0 (
+    echo [%time%] ERROR: Token authentication failed >> "%LOG_FILE%"
+    echo.
+    echo  ERROR: Cannot access repository with provided token!
+    echo.
+    echo  Possible issues:
+    echo  - Token is expired or invalid
+    echo  - Token doesn't have access to the repository
+    echo  - Network connectivity issues
+    echo.
+    echo  Please verify the token with the developer.
+    echo.
+    goto :error_exit
+)
+
+echo [%time%] Token authentication successful >> "%LOG_FILE%"
+
+:: ================================================================================================
+:: RUNELITE DETECTION
+:: ================================================================================================
+
+echo.
+echo [3/6] Detecting RuneLite installation...
+echo [%time%] Searching for RuneLite installation... >> "%LOG_FILE%"
+
+set "RUNELITE_DIR="
+set "PLUGINS_DIR="
+
+:: Common RuneLite installation paths
+set "search_paths[0]=%USERPROFILE%\.runelite"
+set "search_paths[1]=%LOCALAPPDATA%\RuneLite"
+set "search_paths[2]=%APPDATA%\RuneLite"
+set "search_paths[3]=C:\Users\%USERNAME%\.runelite"
+set "search_paths[4]=C:\RuneLite"
+set "search_paths[5]=%PROGRAMFILES%\RuneLite"
+set "search_paths[6]=%PROGRAMFILES(X86)%\RuneLite"
+
+:: Search for RuneLite directories
+for /L %%i in (0,1,6) do (
+    if defined search_paths[%%i] (
+        set "test_path=!search_paths[%%i]!"
+        echo [%time%] Checking: !test_path! >> "%LOG_FILE%"
+        
+        if exist "!test_path!" (
+            echo [%time%] Found RuneLite directory: !test_path! >> "%LOG_FILE%"
+            set "RUNELITE_DIR=!test_path!"
+            
+            :: Check for plugins subdirectory
+            if exist "!test_path!\plugins" (
+                set "PLUGINS_DIR=!test_path!\plugins"
+                echo [%time%] Found plugins directory: !PLUGINS_DIR! >> "%LOG_FILE%"
+                goto :runelite_found
+            ) else (
+                echo [%time%] Plugins directory not found, will create it >> "%LOG_FILE%"
+                set "PLUGINS_DIR=!test_path!\plugins"
+                goto :runelite_found
+            )
+        )
+    )
+)
+
+:: If not found, prompt user
+echo [%time%] RuneLite not found in standard locations >> "%LOG_FILE%"
+echo.
+echo  RuneLite installation not found in standard locations.
+echo.
+echo  Searched locations:
+for /L %%i in (0,1,6) do (
+    if defined search_paths[%%i] (
+        echo   - !search_paths[%%i]!
+    )
+)
+echo.
+echo  Please enter the path to your RuneLite directory manually.
+echo  (Usually contains .runelite folder or RuneLite.exe)
+echo.
+set /p "user_path=Enter RuneLite path (or press Enter to cancel): "
+
+if "!user_path!"=="" (
+    echo [%time%] User cancelled RuneLite path selection >> "%LOG_FILE%"
+    echo  Installation cancelled by user.
+    goto :error_exit
+)
+
+:: Validate user-provided path
+if not exist "!user_path!" (
+    echo [%time%] User-provided path does not exist: !user_path! >> "%LOG_FILE%"
+    echo  ERROR: The specified path does not exist: !user_path!
+    goto :error_exit
+)
+
+set "RUNELITE_DIR=!user_path!"
+set "PLUGINS_DIR=!user_path!\plugins"
+echo [%time%] Using user-provided RuneLite directory: !RUNELITE_DIR! >> "%LOG_FILE%"
+
+:runelite_found
+echo  ^> RuneLite found: !RUNELITE_DIR!
+echo  ^> Plugins directory: !PLUGINS_DIR!
+
+:: Create plugins directory if it doesn't exist
+if not exist "!PLUGINS_DIR!" (
+    echo [%time%] Creating plugins directory: !PLUGINS_DIR! >> "%LOG_FILE%"
+    mkdir "!PLUGINS_DIR!" 2>nul
+    if !errorlevel! neq 0 (
+        echo [%time%] ERROR: Failed to create plugins directory >> "%LOG_FILE%"
+        echo  ERROR: Cannot create plugins directory: !PLUGINS_DIR!
+        echo  This may be a permissions issue. Try running as Administrator.
+        goto :error_exit
+    )
+    echo  ^> Created plugins directory
+)
+
+:: ================================================================================================
+:: BACKUP EXISTING PLUGIN
+:: ================================================================================================
+
+echo.
+echo [4/6] Checking for existing plugin...
+echo [%time%] Checking for existing OptimizerBeta plugin... >> "%LOG_FILE%"
+
+set "EXISTING_PLUGIN=!PLUGINS_DIR!\!PLUGIN_NAME!"
+set "BACKUP_CREATED=false"
+
+if exist "!EXISTING_PLUGIN!" (
+    echo [%time%] Found existing plugin: !EXISTING_PLUGIN! >> "%LOG_FILE%"
+    echo  ^> Found existing OptimizerBeta plugin
+    
+    :: Create backup
+    set "BACKUP_NAME=!PLUGIN_NAME!.backup.%timestamp%"
+    set "BACKUP_PATH=!PLUGINS_DIR!\!BACKUP_NAME!"
+    
+    echo [%time%] Creating backup: !BACKUP_PATH! >> "%LOG_FILE%"
+    copy "!EXISTING_PLUGIN!" "!BACKUP_PATH!" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo  ^> Backup created: !BACKUP_NAME!
+        echo [%time%] Backup successful >> "%LOG_FILE%"
+        set "BACKUP_CREATED=true"
+    ) else (
+        echo  ^> WARNING: Could not create backup
+        echo [%time%] WARNING: Backup failed >> "%LOG_FILE%"
+    )
+) else (
+    echo [%time%] No existing plugin found >> "%LOG_FILE%"
+    echo  ^> No existing plugin found
+)
+
+:: ================================================================================================
+:: DOWNLOAD LATEST PLUGIN
+:: ================================================================================================
+
+echo.
+echo [5/6] Downloading latest plugin...
+echo [%time%] Starting plugin download... >> "%LOG_FILE%"
+
+:: Construct download URL for latest release
+set "API_URL=https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME!/releases/latest"
+set "TEMP_JSON=%TEMP%\optimizer_release.json"
+set "DOWNLOAD_URL="
+
+echo [%time%] Fetching release information from: !API_URL! >> "%LOG_FILE%"
+
+:: Get latest release info
+if "!CURL_AVAILABLE!"=="true" (
+    curl -s -H "Authorization: token !GITHUB_TOKEN!" -H "Accept: application/vnd.github.v3+json" "!API_URL!" > "!TEMP_JSON!" 2>&1
+    set "api_result=!errorlevel!"
+) else (
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'; 'Accept' = 'application/vnd.github.v3+json'}; try { Invoke-WebRequest -Uri '!API_URL!' -Headers $headers -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath '!TEMP_JSON!' -Encoding UTF8; exit 0 } catch { exit 1 }" 2>&1
+    set "api_result=!errorlevel!"
+)
+
+if !api_result! neq 0 (
+    echo [%time%] ERROR: Failed to fetch release information >> "%LOG_FILE%"
+    echo  ERROR: Cannot fetch latest release information from GitHub.
+    echo  This could be due to:
+    echo  - Network connectivity issues
+    echo  - Invalid or expired token
+    echo  - Repository access restrictions
+    echo.
+    goto :error_exit
+)
+
+:: Extract download URL from JSON (simplified approach for batch)
+:: Look for the JAR file download URL
+for /f "delims=" %%a in ('findstr /C:"browser_download_url.*\.jar" "!TEMP_JSON!"') do (
+    set "json_line=%%a"
+    :: Extract URL between quotes
+    for /f "tokens=2 delims=:" %%b in ("!json_line!") do (
+        set "url_part=%%b"
+        set "url_part=!url_part: =!"
+        set "url_part=!url_part:~1,-1!"
+        set "DOWNLOAD_URL=!url_part!"
+    )
+)
+
+if "!DOWNLOAD_URL!"=="" (
+    echo [%time%] ERROR: Could not find JAR download URL >> "%LOG_FILE%"
+    echo  ERROR: Cannot find plugin download URL in the latest release.
+    echo  The repository might not have a proper release with a JAR file.
+    goto :error_exit
+)
+
+echo [%time%] Download URL found: !DOWNLOAD_URL! >> "%LOG_FILE%"
+echo  ^> Download URL: !DOWNLOAD_URL!
+
+:: Download the plugin
+set "TEMP_PLUGIN=%TEMP%\!PLUGIN_NAME!"
+echo [%time%] Downloading to: !TEMP_PLUGIN! >> "%LOG_FILE%"
+
+if "!CURL_AVAILABLE!"=="true" (
+    echo  ^> Downloading with curl...
+    curl -L -H "Authorization: token !GITHUB_TOKEN!" -o "!TEMP_PLUGIN!" "!DOWNLOAD_URL!" 2>&1
+    set "download_result=!errorlevel!"
+) else (
+    echo  ^> Downloading with PowerShell...
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { Invoke-WebRequest -Uri '!DOWNLOAD_URL!' -Headers $headers -OutFile '!TEMP_PLUGIN!' -UseBasicParsing; exit 0 } catch { Write-Error $_.Exception.Message; exit 1 }" 2>&1
+    set "download_result=!errorlevel!"
+)
+
+if !download_result! neq 0 (
+    echo [%time%] ERROR: Plugin download failed >> "%LOG_FILE%"
+    echo  ERROR: Failed to download the plugin.
+    echo  Check your internet connection and token permissions.
+    goto :error_exit
+)
+
+:: Verify download
+if not exist "!TEMP_PLUGIN!" (
+    echo [%time%] ERROR: Downloaded file not found >> "%LOG_FILE%"
+    echo  ERROR: Download completed but file not found.
+    goto :error_exit
+)
+
+:: Check file size (should be more than a few KB for a valid JAR)
+for %%F in ("!TEMP_PLUGIN!") do set "file_size=%%~zF"
+if !file_size! lss 1024 (
+    echo [%time%] ERROR: Downloaded file too small (!file_size! bytes) >> "%LOG_FILE%"
+    echo  ERROR: Downloaded file appears to be corrupted or invalid.
+    echo  File size: !file_size! bytes (expected: much larger)
+    goto :error_exit
+)
+
+echo [%time%] Download successful, file size: !file_size! bytes >> "%LOG_FILE%"
+echo  ^> Download complete (Size: !file_size! bytes)
+
+:: ================================================================================================
+:: INSTALL PLUGIN
+:: ================================================================================================
+
+echo.
+echo [6/6] Installing plugin...
+echo [%time%] Installing plugin to: !EXISTING_PLUGIN! >> "%LOG_FILE%"
+
+:: Copy plugin to RuneLite plugins directory
+copy "!TEMP_PLUGIN!" "!EXISTING_PLUGIN!" >nul 2>&1
+if !errorlevel! neq 0 (
+    echo [%time%] ERROR: Failed to copy plugin to plugins directory >> "%LOG_FILE%"
+    echo  ERROR: Cannot install plugin to RuneLite plugins directory.
+    echo  This may be a permissions issue.
+    echo.
+    echo  Try:
+    echo  1. Running this installer as Administrator
+    echo  2. Closing RuneLite if it's currently running
+    echo  3. Checking that the plugins directory is writable
+    echo.
+    goto :error_exit
+)
+
+:: Verify installation
+if not exist "!EXISTING_PLUGIN!" (
+    echo [%time%] ERROR: Plugin not found after installation >> "%LOG_FILE%"
+    echo  ERROR: Installation failed - plugin not found in plugins directory.
+    goto :error_exit
+)
+
+:: Check installed file size
+for %%F in ("!EXISTING_PLUGIN!") do set "installed_size=%%~zF"
+if !installed_size! neq !file_size! (
+    echo [%time%] WARNING: Installed file size mismatch >> "%LOG_FILE%"
+    echo  WARNING: Installed file size (!installed_size!) differs from download (!file_size!)
+)
+
+echo [%time%] Plugin installation successful >> "%LOG_FILE%"
+echo  ^> Plugin installed successfully!
+
+:: Clean up temporary files
+del "!TEMP_PLUGIN!" >nul 2>&1
+del "!TEMP_JSON!" >nul 2>&1
+
+:: ================================================================================================
+:: INSTALLATION COMPLETE
+:: ================================================================================================
+
+echo.
+echo  ================================================================================================
+echo   Installation Complete!
+echo  ================================================================================================
+echo.
+echo  ^> Plugin installed to: !EXISTING_PLUGIN!
+echo  ^> File size: !installed_size! bytes
+if "!BACKUP_CREATED!"=="true" (
+    echo  ^> Backup created: !BACKUP_NAME!
+)
+echo  ^> Installation log: !LOG_FILE!
+echo.
+echo  Next Steps:
+echo  1. Start or restart RuneLite
+echo  2. Go to the Plugin Hub (wrench icon in RuneLite)
+echo  3. Enable "Optimizer" in the plugin list
+echo  4. Configure the plugin settings as needed
+echo.
+echo  If you encounter any issues:
+echo  - Check the log file: !LOG_FILE!
+echo  - Report issues at: https://github.com/!REPO_OWNER!/!REPO_NAME!/issues
+echo  - Include the log file and error details
+echo.
+
+echo [%time%] Installation completed successfully >> "%LOG_FILE%"
+echo ================================================================================================ >> "%LOG_FILE%"
+
+echo  Press any key to exit...
+pause >nul
+goto :end
+
+:: ================================================================================================
+:: ERROR HANDLING
+:: ================================================================================================
+
+:error_exit
+echo.
+echo  ================================================================================================
+echo   Installation Failed
+echo  ================================================================================================
+echo.
+echo  The installation encountered an error and could not complete.
+echo.
+echo  Debug Information:
+echo  - Log file: !LOG_FILE!
+echo  - Error log: !ERROR_LOG!
+echo  - Windows version: !WINDOWS_VERSION!
+echo  - Administrator: !IS_ADMIN!
+echo  - Internet: !INTERNET_OK!
+echo  - Token configured: !GITHUB_TOKEN! neq YOUR_TOKEN_HERE
+echo.
+echo  For support:
+echo  1. Check the log files above
+echo  2. Try running as Administrator
+echo  3. Verify your internet connection
+echo  4. Confirm the token is correct
+echo  5. Report the issue with log files
+echo.
+
+echo [%time%] Installation failed >> "%LOG_FILE%"
+echo [%time%] Error details written to: !ERROR_LOG! >> "%LOG_FILE%"
+
+:: Copy recent errors to error log
+echo ================================================================================================ > "%ERROR_LOG%"
+echo OptimizerBeta Plugin Installer - Error Log >> "%ERROR_LOG%"
+echo Installation failed at %date% %time% >> "%ERROR_LOG%"
+echo ================================================================================================ >> "%ERROR_LOG%"
+echo. >> "%ERROR_LOG%"
+echo System Information: >> "%ERROR_LOG%"
+echo - Windows Version: !WINDOWS_VERSION! >> "%ERROR_LOG%"
+echo - Administrator: !IS_ADMIN! >> "%ERROR_LOG%"
+echo - Internet: !INTERNET_OK! >> "%ERROR_LOG%"
+echo - Curl Available: !CURL_AVAILABLE! >> "%ERROR_LOG%"
+echo - PowerShell Available: !POWERSHELL_AVAILABLE! >> "%ERROR_LOG%"
+echo - Token Configured: !GITHUB_TOKEN! neq YOUR_TOKEN_HERE >> "%ERROR_LOG%"
+echo. >> "%ERROR_LOG%"
+
+echo  Press any key to exit...
+pause >nul
+exit /b 1
+
+:: ================================================================================================
+:: CLEANUP AND EXIT
+:: ================================================================================================
+
+:end
+echo [%time%] Installer finished >> "%LOG_FILE%"
+endlocal
+exit /b 0

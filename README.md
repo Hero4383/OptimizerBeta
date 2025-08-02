@@ -1,77 +1,58 @@
-# Optimizer Plugin - Beta Testing
+# OptimizerBeta - RuneLite Plugin
 
-Welcome to the Optimizer Plugin beta test program! This repository contains everything you need to test the plugin.
+**Easy One-Click Installation for Beta Testers**
 
-## Quick Start
+## 🚀 Quick Start
 
-1. Download the latest release JAR file
-2. Run the installer script (Windows)
-3. Enable the plugin in RuneLite
-4. Start testing!
+1. **Download** both files from this repository:
+   - `README.md` (this file)
+   - `OptimizerBeta-Installer.bat`
 
-## What's Included
+2. **Get your access token** from the developer
 
-- **Plugin JAR**: The compiled plugin ready for RuneLite
-- **Installer**: Automatic installation script
-- **Updater**: Get the latest beta versions
-- **Documentation**: Instructions and help
+3. **Edit the installer**:
+   - Right-click `OptimizerBeta-Installer.bat` → "Edit"
+   - Find: `set "GITHUB_TOKEN=YOUR_TOKEN_HERE"`
+   - Replace `YOUR_TOKEN_HERE` with the token provided by the developer
+   - Save the file (Ctrl+S)
 
-## Installation
+4. **Double-click** `OptimizerBeta-Installer.bat` to run
 
-### Windows (Recommended)
-1. Download the latest release
-2. Extract the files
-3. Double-click `install-plugin.bat`
-4. Restart RuneLite
-5. Enable "Optimizer" in the plugin list
+5. **Follow the prompts** - the installer does everything automatically
 
-### Manual Installation
-1. Download `optimizer-1.0-SNAPSHOT.jar`
-2. Copy to: `%USERPROFILE%\.runelite\plugins\`
-3. Restart RuneLite
-4. Enable the plugin
+6. **Restart RuneLite** and enable the "Optimizer" plugin
 
-## Getting Updates
+## 📋 What You Need
 
-Run `check-update.bat` to automatically download and install the latest version.
+- Windows computer
+- RuneLite installed
+- Access token (provided by developer)
 
-## What to Test
+## 🔧 If Something Goes Wrong
 
-### Core Features
-- **Quest Automation**: Test DemonSlayer quest automation
-- **Task Management**: Add and prioritize tasks
-- **Economic Optimization**: GP/hour calculations
-- **Navigation**: Route planning and guidance
+The installer has detailed error messages and creates log files to help troubleshoot issues.
 
-### Areas of Focus
-- **Stability**: Does the plugin crash or cause lag?
-- **Accuracy**: Are calculations and detections correct?
-- **Usability**: Is the interface intuitive?
-- **Performance**: How does it affect RuneLite performance?
+**Common fixes:**
+- Run as Administrator (right-click installer → "Run as administrator")
+- Make sure RuneLite is closed during installation
+- Check that your token is copied correctly (no extra spaces)
 
-## Reporting Issues
+## 🧪 What to Test
 
-Please report bugs and feedback by creating an issue in this repository.
+- Quest automation features
+- Task management system
+- Economic optimization tools
+- Navigation and routing
+- Overall stability and performance
 
-Include:
-- Description of the problem
-- Steps to reproduce
-- Screenshots (if applicable)
-- RuneLite version
-- Java version
+## 📞 Need Help?
 
-## Beta Testing Guidelines
+Create an issue in this repository with:
+- What went wrong
+- The error message (if any)
+- Screenshot of the problem
+- Your Windows version
 
-- **Confidentiality**: This is beta software - please don't distribute
-- **Testing Period**: Beta access may be time-limited
-- **Updates**: Use the update script to get latest versions
-- **Feedback**: Your input helps improve the plugin
+---
 
-## Support
-
-If you need help:
-1. Check the documentation
-2. Look for existing issues
-3. Create a new issue if needed
-
-Thank you for participating in the beta test!
+**Thank you for beta testing!** 🎮
