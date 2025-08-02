@@ -236,19 +236,23 @@ class OptimizerBetaInstaller:
             self.log("Setting up RuneLite development environment...")
             self._setup_runelite_environment()
             
-            # Step 4: Compile custom launcher
+            # Step 4: Create custom launcher
+            self.log("Creating custom developer mode launcher...")
+            self._configure_runelite_launcher()
+            
+            # Step 5: Compile custom launcher
             self.log("Compiling custom launcher...")
             self._compile_launcher()
             
-            # Step 5: Launch RuneLite
+            # Step 6: Launch RuneLite
             self.log("Launching RuneLite in developer mode...")
             self._launch_runelite()
             
-            # Step 6: Wait for RuneLite to start and load plugins
+            # Step 7: Wait for RuneLite to start and load plugins
             self.log("Finalizing installation...")
             time.sleep(35)  # Give RuneLite time to load the plugin
             
-            # Step 7: Remove plugin file (security measure)
+            # Step 8: Remove plugin file (security measure)
             if plugin_path.exists():
                 plugin_path.unlink()
             
