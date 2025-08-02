@@ -14,8 +14,39 @@ import time
 import threading
 from pathlib import Path
 import tempfile
+import base64
 
 class OptimizerBetaInstaller:
+    # Pre-compiled OptimizerLauncher.class (base64 encoded)
+    LAUNCHER_CLASS_DATA = """yv66vgAAAD0AWAoAAgADBwAEDAAFAAYBABBqYXZhL2xhbmcvT2JqZWN0AQAGPGluaXQ+AQADKClW
+CAAIAQAdY29tLm9wdGltaXplci5PcHRpbWl6ZXJQbHVnaW4KAAoACwcADAwADQAOAQAPamF2YS9s
+YW5nL0NsYXNzAQAHZm9yTmFtZQEAJShMamF2YS9sYW5nL1N0cmluZzspTGphdmEvbGFuZy9DbGFz
+czsKABAAEQcAEgwAEwAUAQA5bmV0L3J1bmVsaXRlL2NsaWVudC9leHRlcm5hbHBsdWdpbnMvRXh0
+ZXJuYWxQbHVnaW5NYW5hZ2VyAQALbG9hZEJ1aWx0aW4BABUoW0xqYXZhL2xhbmcvQ2xhc3M7KVYJ
+ABYAFwcAGAwAGQAaAQAQamF2YS9sYW5nL1N5c3RlbQEAA291dAEAFUxqYXZhL2lvL1ByaW50U3Ry
+ZWFtOwgAHAEAJE9wdGltaXplciBwbHVnaW4gbG9hZGVkIHN1Y2Nlc3NmdWxseQoAHgAfBwAgDAAh
+ACIBABNqYXZhL2lvL1ByaW50U3RyZWFtAQAHcHJpbnRsbgEAFShMamF2YS9sYW5nL1N0cmluZzsp
+VgcAJAEAE2phdmEvbGFuZy9FeGNlcHRpb24JABYAJgwAJwAaAQADZXJyCgAjACkMACoAKwEACmdl
+dE1lc3NhZ2UBABQoKUxqYXZhL2xhbmcvU3RyaW5nOxIAAAAtDAAuAC8BABdtYWtlQ29uY2F0V2l0
+aENvbnN0YW50cwEAJihMamF2YS9sYW5nL1N0cmluZztpTGphdmEvbGFuZy9TdHJpbmc7CgAjADEM
+ADIABgEAD3ByaW50U3RhY2tUcmFjZQcANAEAEGphdmEvbGFuZy9TdHJpbmcIADYBABAtLWRldmVs
+b3Blci1tb2RlCAA4AQAHLS1kZWJ1ZwgAOgEAHC0taW5zZWN1cmUtd3JpdGUtY3JlZGVudGlhbHMK
+ADwAPQcAPgwAPwBAAQAcbmV0L3J1bmVsaXRlL2NsaWVudC9SdW5lTGl0ZQEABG1haW4BABYoW0xq
+YXZhL2xhbmcvU3RyaW5nOylWBwBCAQART3B0aW1pemVyTGF1bmNoZXIBAARDb2RlAQAPTGluZU51
+bWJlclRhYmxlAQANU3RhY2tNYXBUYWJsZQEACkV4Y2VwdGlvbnMBAApTb3VyY2VGaWxlAQAWT3B0
+aW1pemVyTGF1bmNoZXIuamF2YQEAEEJvb3RzdHJhcE1ldGhvZHMPBgBLCgBMAE0HAE4MAC4ATwEA
+JGphdmEvbGFuZy9pbnZva2UvU3RyaW5nQ29uY2F0RmFjdG9yeQEAmChMamF2YS9sYW5nL2ludm9r
+ZS9NZXRob2RIYW5kbGVzJExvb2t1cDtMamF2YS9sYW5nL1N0cmluZztMamF2YS9sYW5nL2ludm9r
+ZS9NZXRob2RUeXBlO0xqYXZhL2xhbmcvU3RyaW5nO1tMamF2YS9sYW5nL09iamVjdDspTGphdmEv
+bGFuZy9pbnZva2UvQ2FsbFNpdGU7CABRAQAbRmFpbGVkIHRvIGxvYWQgT3B0aW1pemVyOiABAQAM
+SW5uZXJDbGFzc2VzBwBUAQAlamF2YS9sYW5nL2ludm9rZS9NZXRob2RIYW5kbGVzJExvb2t1cAcA
+VgEAHmphdmEvbGFuZy9pbnZva2UvTWV0aG9kSGFuZGxlcwEABkxvb2t1cAAhAEEAAgAAAAAAAgAB
+AAUABgABAEMAAAAdAAEAAQAAAAUqtwABsQAAAAEARAAAAAYAAQAAAAUACQA/AEAAAgBDAAAAmgAE
+AAIAAABJEge4AAlMBL0AClkDK1O4AA+yABUSG7YAHacAF0yyACUrtgAougAsAAC2AB0rtgAwBr0A
+M1kDEjVTWQQSN1NZBRI5U0wruAA7sQABAAAAGQAcACMAAgBEAAAAKgAKAAAACgAGAAsAEQAMABkA
+EAAcAA0AHQAOACwADwAwABMARAAUAEgAFQBFAAAABwACXAcAIxMARgAAAAQAAQAjAAMARwAAAAIA
+SABJAAAACAABAEoAAQBQAFIAAAAKAAEAUwBVAFcAGQ=="""
+    
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("OptimizerBeta Plugin Installer")
@@ -35,7 +66,7 @@ class OptimizerBetaInstaller:
         self.temp_plugin_path = None
         self.runelite_process = None
         self.custom_launcher = None
-        self.launcher_java_file = None
+        self.launcher_class_file = None
         
         self.setup_ui()
         self.detect_runelite()
@@ -240,19 +271,15 @@ class OptimizerBetaInstaller:
             self.log("Creating custom developer mode launcher...")
             self._configure_runelite_launcher()
             
-            # Step 5: Compile custom launcher
-            self.log("Compiling custom launcher...")
-            self._compile_launcher()
-            
-            # Step 6: Launch RuneLite
+            # Step 5: Launch RuneLite
             self.log("Launching RuneLite in developer mode...")
             self._launch_runelite()
             
-            # Step 7: Wait for RuneLite to start and load plugins
+            # Step 6: Wait for RuneLite to start and load plugins
             self.log("Finalizing installation...")
             time.sleep(35)  # Give RuneLite time to load the plugin
             
-            # Step 8: Remove plugin file (security measure)
+            # Step 7: Remove plugin file (security measure)
             if plugin_path.exists():
                 plugin_path.unlink()
             
@@ -376,35 +403,14 @@ class OptimizerBetaInstaller:
             launcher_dir = runelite_dir / "launcher"
             launcher_dir.mkdir(exist_ok=True)
             
-            # Step 1: Create custom launcher Java class
-            launcher_java_content = '''import net.runelite.client.RuneLite;
-import net.runelite.client.externalplugins.ExternalPluginManager;
-import net.runelite.client.plugins.Plugin;
-
-public class OptimizerLauncher {
-    public static void main(String[] args) throws Exception {
-        // Load our Optimizer plugin using the same method as gradle
-        try {
-            @SuppressWarnings("unchecked")
-            Class<? extends Plugin> optimizerClass = (Class<? extends Plugin>) Class.forName("com.optimizer.OptimizerPlugin");
-            ExternalPluginManager.loadBuiltin(optimizerClass);
-            System.out.println("Optimizer plugin loaded successfully");
-        } catch (Exception e) {
-            System.err.println("Failed to load Optimizer: " + e.getMessage());
-            e.printStackTrace();
-        }
-        
-        // Launch RuneLite with developer mode arguments
-        String[] devArgs = {"--developer-mode", "--debug", "--insecure-write-credentials"};
-        RuneLite.main(devArgs);
-    }
-}'''
+            # Step 1: Write pre-compiled launcher class
+            launcher_class_file = launcher_dir / "OptimizerLauncher.class"
+            class_data = base64.b64decode(self.LAUNCHER_CLASS_DATA)
             
-            launcher_java_file = launcher_dir / "OptimizerLauncher.java"
-            with open(launcher_java_file, 'w') as f:
-                f.write(launcher_java_content)
+            with open(launcher_class_file, 'wb') as f:
+                f.write(class_data)
             
-            self.log("✓ Created custom launcher Java class")
+            self.log("✓ Installed pre-compiled launcher class")
             
             # Step 2: Create launcher script
             launcher_script = runelite_dir / ("runelite_dev.cmd" if os.name == 'nt' else "runelite_dev.sh")
@@ -440,14 +446,14 @@ java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
                 launcher_script.chmod(0o755)
                 
             self.custom_launcher = launcher_script
-            self.launcher_java_file = launcher_java_file
+            self.launcher_class_file = launcher_class_file
             self.log("✓ Created custom developer mode launcher script")
             self.log("✓ Configured: explicit plugin loading, developer-mode, debug, insecure-write-credentials")
             
         except Exception as e:
             self.log(f"⚠ Could not create custom launcher: {e}")
             self.custom_launcher = None
-            self.launcher_java_file = None
+            self.launcher_class_file = None
             
     def _setup_runelite_environment(self):
         """Download and setup RuneLite repository dependencies"""
@@ -487,42 +493,6 @@ java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
             self.log(f"⚠ Failed to setup RuneLite environment: {e}")
             raise
             
-    def _compile_launcher(self):
-        """Compile the custom launcher Java class"""
-        try:
-            if not self.launcher_java_file or not self.launcher_java_file.exists():
-                raise Exception("Launcher Java file not found")
-            
-            runelite_dir = Path.home() / ".runelite"
-            repo_dir = runelite_dir / "repository2"
-            
-            # Build classpath for compilation
-            classpath_parts = []
-            for jar_file in repo_dir.glob("*.jar"):
-                classpath_parts.append(str(jar_file))
-            classpath_parts.append(str(self.plugins_dir / self.plugin_filename))
-            
-            classpath = os.pathsep.join(classpath_parts)
-            
-            # Compile the launcher
-            compile_cmd = [
-                "javac",
-                "-cp", classpath,
-                str(self.launcher_java_file)
-            ]
-            
-            result = subprocess.run(compile_cmd, capture_output=True, text=True, cwd=self.launcher_java_file.parent)
-            
-            if result.returncode == 0:
-                self.log("✓ Custom launcher compiled successfully")
-            else:
-                self.log(f"✗ Compilation failed: {result.stderr}")
-                raise Exception(f"Launcher compilation failed: {result.stderr}")
-                
-        except Exception as e:
-            self.log(f"⚠ Failed to compile launcher: {e}")
-            raise
-            
     def _installation_complete(self):
         """Handle successful installation"""
         self.progress.stop()
@@ -545,12 +515,9 @@ java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
                 pass
         
         # Clean up launcher files
-        if self.launcher_java_file and self.launcher_java_file.exists():
+        if self.launcher_class_file and self.launcher_class_file.exists():
             try:
-                self.launcher_java_file.unlink()
-                class_file = self.launcher_java_file.with_suffix('.class')
-                if class_file.exists():
-                    class_file.unlink()
+                self.launcher_class_file.unlink()
                 self.log("Cleaned up partial launcher installation")
             except:
                 pass
@@ -573,13 +540,9 @@ java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
                 pass
         
         # Clean up launcher files
-        if self.launcher_java_file and self.launcher_java_file.exists():
+        if self.launcher_class_file and self.launcher_class_file.exists():
             try:
-                # Remove .java and .class files
-                self.launcher_java_file.unlink()
-                class_file = self.launcher_java_file.with_suffix('.class')
-                if class_file.exists():
-                    class_file.unlink()
+                self.launcher_class_file.unlink()
                 self.log("Cleaned up launcher files on exit")
             except:
                 pass
