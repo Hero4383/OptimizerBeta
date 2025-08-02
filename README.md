@@ -4,35 +4,25 @@
 
 ## 🚀 Quick Start
 
-1. **Download** the installer files from this repository:
-   - `OptimizerBeta-Installer.py`
-   - `requirements.txt`
+1. **Download** the installer from this repository:
+   - `OptimizerBeta-Installer.exe`
 
-2. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+2. **Get your GitHub token** from the developer (fine-grained personal access token)
 
-3. **Get your GitHub token** from the developer (fine-grained personal access token)
+3. **Double-click** `OptimizerBeta-Installer.exe` to run
 
-4. **Run the installer**:
-   ```bash
-   python OptimizerBeta-Installer.py
-   ```
-
-5. **In the GUI**:
+4. **In the GUI**:
    - Enter your GitHub token (starts with `github_pat_...`)
    - Click "Validate Token"
    - Click "Install & Launch RuneLite"
 
-6. **The plugin will automatically**:
+5. **The plugin will automatically**:
    - Download and install to RuneLite
    - Launch RuneLite with the plugin active
-   - Remove the plugin file for security (stays loaded in RuneLite)
 
 ## 📋 What You Need
 
-- **Python 3.7+** installed
+- **Windows 10/11** computer
 - **RuneLite** installed
 - **GitHub token** with access to the private repository
 - **Internet connection**
@@ -46,9 +36,7 @@
 
 ## 🖥️ System Requirements
 
-- **Windows 10/11** (primary support)
-- **macOS/Linux** (should work but not extensively tested)
-- **Python 3.7+** with `tkinter` support
+- **Windows 10/11** 
 - **RuneLite** installed in standard location
 
 ## 🔧 Troubleshooting

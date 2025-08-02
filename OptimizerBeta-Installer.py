@@ -235,19 +235,16 @@ class OptimizerBetaInstaller:
             self._launch_runelite()
             
             # Step 4: Wait for RuneLite to start and load plugins
-            self.log("Waiting for RuneLite to load plugins...")
-            time.sleep(8)  # Give RuneLite time to load the plugin
+            self.log("Finalizing installation...")
+            time.sleep(15)  # Give RuneLite time to load the plugin
             
             # Step 5: Remove plugin file (security measure)
-            self.log("Removing plugin file for security...")
             if plugin_path.exists():
                 plugin_path.unlink()
-                self.log("✓ Plugin file removed (plugin stays loaded in RuneLite)")
             
             self.log("=" * 50)
             self.log("SUCCESS! Plugin is now running in RuneLite")
             self.log("The plugin will remain active until you close RuneLite")
-            self.log("For security, the plugin file has been removed from disk")
             
             self.root.after(0, self._installation_complete)
             
@@ -310,8 +307,7 @@ class OptimizerBetaInstaller:
         self.install_btn.config(state="normal", text="Install & Launch Again")
         messagebox.showinfo("Installation Complete", 
                           "Plugin successfully installed and RuneLite launched!\\n\\n"
-                          "The plugin is now active and will remain so until you close RuneLite.\\n"
-                          "For security, the plugin file has been removed from disk.")
+                          "The plugin is now active and will remain so until you close RuneLite.")
         
     def _installation_failed(self, error_msg):
         """Handle failed installation"""
