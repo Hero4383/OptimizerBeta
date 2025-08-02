@@ -259,9 +259,15 @@ class OptimizerBetaInstaller:
             
     def _launch_runelite(self):
         """Launch RuneLite application with developer mode arguments"""
-        # Developer mode arguments for external plugin loading
-        dev_args = [
+        # VM arguments needed for developer mode (must come before -jar)
+        vm_args = [
+            "-ea"  # Enable assertions (required for developer mode)
+        ]
+        
+        # Program arguments for external plugin loading
+        program_args = [
             "--developer-mode",
+            "--debug",
             "--external-plugins",
             "--insecure-write-credentials"
         ]
@@ -278,11 +284,11 @@ class OptimizerBetaInstaller:
             if isinstance(exe_path, str):
                 # Try system PATH
                 try:
-                    cmd = [exe_path] + dev_args
+                    cmd = [exe_path] + program_args
                     self.runelite_process = subprocess.Popen(cmd, 
                                                            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
                     self.log(f"✓ RuneLite launched in developer mode via: {exe_path}")
-                    self.log(f"✓ Arguments: {' '.join(dev_args)}")
+                    self.log(f"✓ Arguments: {' '.join(program_args)}")
                     return
                 except FileNotFoundError:
                     continue
@@ -291,14 +297,18 @@ class OptimizerBetaInstaller:
                 if exe_path.exists():
                     try:
                         if exe_path.suffix == '.jar':
-                            cmd = ['java', '-jar', str(exe_path)] + dev_args
+                            # For JAR files, VM args go before -jar, program args after
+                            cmd = ['java'] + vm_args + ['-jar', str(exe_path)] + program_args
                         else:
-                            cmd = [str(exe_path)] + dev_args
+                            # For EXE files, just add program args
+                            cmd = [str(exe_path)] + program_args
                             
                         self.runelite_process = subprocess.Popen(cmd,
                                                                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
                         self.log(f"✓ RuneLite launched in developer mode via: {exe_path}")
-                        self.log(f"✓ Arguments: {' '.join(dev_args)}")
+                        if exe_path.suffix == '.jar':
+                            self.log(f"✓ VM Args: {' '.join(vm_args)}")
+                        self.log(f"✓ Program Args: {' '.join(program_args)}")
                         return
                     except Exception as e:
                         self.log(f"Failed to launch {exe_path}: {e}")
@@ -307,8 +317,8 @@ class OptimizerBetaInstaller:
         # If all else fails, show instructions
         self.log("⚠ Could not launch RuneLite automatically.")
         self.log("Please launch RuneLite manually with these arguments:")
-        self.log("  --developer-mode --external-plugins")
-        self.log("Example: RuneLite.exe --developer-mode --external-plugins")
+        self.log("For JAR: java -ea -jar RuneLite.jar --developer-mode --debug --external-plugins --insecure-write-credentials")
+        self.log("For EXE: RuneLite.exe --developer-mode --debug --external-plugins --insecure-write-credentials")
         
         # Try opening RuneLite directory
         runelite_dir = Path.home() / ".runelite"
