@@ -1,32 +1,52 @@
 @echo off
 echo DEBUG: Script starting...
+
+REM Force create log file IMMEDIATELY before anything else
+set "CRASH_LOG=%TEMP%\optimizer_crash_%RANDOM%.log"
+echo Script started at %date% %time% > "%CRASH_LOG%"
+echo DEBUG: Crash log created: %CRASH_LOG%
+echo DEBUG: Crash log created: %CRASH_LOG% >> "%CRASH_LOG%"
+
 echo DEBUG: Enabling delayed expansion...
+echo DEBUG: Enabling delayed expansion... >> "%CRASH_LOG%"
 setlocal EnableDelayedExpansion
 echo DEBUG: Delayed expansion enabled
+echo DEBUG: Delayed expansion enabled >> "%CRASH_LOG%"
 
 REM ================================================================================================
 REM CONFIGURATION - MUST BE SET FIRST
 REM ================================================================================================
 echo DEBUG: Setting configuration variables...
+echo DEBUG: Setting configuration variables... >> "%CRASH_LOG%"
 
 REM Replace YOUR_TOKEN_HERE with the token provided by the developer
 set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
+echo Config: GITHUB_TOKEN set >> "%CRASH_LOG%"
 
 REM GitHub repository information (DO NOT CHANGE)
 set "REPO_OWNER=Hero4383"
+echo Config: REPO_OWNER set >> "%CRASH_LOG%"
 set "REPO_NAME=Optimizer"
+echo Config: REPO_NAME set >> "%CRASH_LOG%"
 set "PLUGIN_NAME=optimizer-1.0-SNAPSHOT.jar"
+echo Config: PLUGIN_NAME set >> "%CRASH_LOG%"
 
 REM Key validation endpoint (for one-time use keys)
 set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/contents/used_keys.txt"
+echo Config: KEY_VALIDATION_URL set >> "%CRASH_LOG%"
 
 echo DEBUG: Configuration set
+echo DEBUG: Configuration set >> "%CRASH_LOG%"
 echo DEBUG: Token: !GITHUB_TOKEN:~0,10!...
+echo DEBUG: Token: !GITHUB_TOKEN:~0,10!... >> "%CRASH_LOG%"
 echo DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
+echo DEBUG: Repo: !REPO_OWNER!/!REPO_NAME! >> "%CRASH_LOG%"
 
 echo DEBUG: Setting window title...
+echo DEBUG: Setting window title... >> "%CRASH_LOG%"
 title OptimizerBeta Plugin Installer
 echo DEBUG: Title set
+echo DEBUG: Title set >> "%CRASH_LOG%"
 
 :: ================================================================================================
 :: OptimizerBeta RuneLite Plugin Installer
@@ -53,18 +73,26 @@ echo DEBUG: Title set
 
 :: Create timestamp for logs
 echo DEBUG: Creating timestamp...
+echo DEBUG: Creating timestamp... >> "%CRASH_LOG%"
 set "timestamp=manual_timestamp"
+echo timestamp set to manual_timestamp >> "%CRASH_LOG%"
 echo DEBUG: Attempting to get system time...
+echo DEBUG: Attempting to get system time... >> "%CRASH_LOG%"
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value 2^>nul') do (
     if not "%%a"=="" set "dt=%%a"
+    echo wmic loop iteration completed >> "%CRASH_LOG%"
 )
 echo DEBUG: dt value: !dt!
+echo DEBUG: dt value: !dt! >> "%CRASH_LOG%"
 if defined dt (
     echo DEBUG: Processing timestamp...
+    echo DEBUG: Processing timestamp... >> "%CRASH_LOG%"
     set "timestamp=!dt:~0,4!-!dt:~4,2!-!dt:~6,2!_!dt:~8,2!-!dt:~10,2!-!dt:~12,2!"
     echo DEBUG: Timestamp created: !timestamp!
+    echo DEBUG: Timestamp created: !timestamp! >> "%CRASH_LOG%"
 ) else (
     echo WARNING: Could not get system time, using default
+    echo WARNING: Could not get system time, using default >> "%CRASH_LOG%"
     set "timestamp=default_time"
 )
 
