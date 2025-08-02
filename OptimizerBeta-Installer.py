@@ -236,7 +236,7 @@ class OptimizerBetaInstaller:
             
             # Step 4: Wait for RuneLite to start and load plugins
             self.log("Finalizing installation...")
-            time.sleep(15)  # Give RuneLite time to load the plugin
+            time.sleep(35)  # Give RuneLite time to load the plugin
             
             # Step 5: Remove plugin file (security measure)
             if plugin_path.exists():
@@ -258,7 +258,14 @@ class OptimizerBetaInstaller:
             self.root.after(0, lambda: self._installation_failed(error_msg))
             
     def _launch_runelite(self):
-        """Launch RuneLite application"""
+        """Launch RuneLite application with developer mode arguments"""
+        # Developer mode arguments for external plugin loading
+        dev_args = [
+            "--developer-mode",
+            "--external-plugins",
+            "--insecure-write-credentials"
+        ]
+        
         # Try to find RuneLite executable
         possible_exes = [
             "RuneLite.exe",
@@ -271,9 +278,11 @@ class OptimizerBetaInstaller:
             if isinstance(exe_path, str):
                 # Try system PATH
                 try:
-                    self.runelite_process = subprocess.Popen([exe_path], 
+                    cmd = [exe_path] + dev_args
+                    self.runelite_process = subprocess.Popen(cmd, 
                                                            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
-                    self.log(f"✓ RuneLite launched via: {exe_path}")
+                    self.log(f"✓ RuneLite launched in developer mode via: {exe_path}")
+                    self.log(f"✓ Arguments: {' '.join(dev_args)}")
                     return
                 except FileNotFoundError:
                     continue
@@ -282,24 +291,30 @@ class OptimizerBetaInstaller:
                 if exe_path.exists():
                     try:
                         if exe_path.suffix == '.jar':
-                            self.runelite_process = subprocess.Popen(['java', '-jar', str(exe_path)],
-                                                                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+                            cmd = ['java', '-jar', str(exe_path)] + dev_args
                         else:
-                            self.runelite_process = subprocess.Popen([str(exe_path)],
-                                                                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
-                        self.log(f"✓ RuneLite launched via: {exe_path}")
+                            cmd = [str(exe_path)] + dev_args
+                            
+                        self.runelite_process = subprocess.Popen(cmd,
+                                                               creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+                        self.log(f"✓ RuneLite launched in developer mode via: {exe_path}")
+                        self.log(f"✓ Arguments: {' '.join(dev_args)}")
                         return
                     except Exception as e:
                         self.log(f"Failed to launch {exe_path}: {e}")
                         continue
         
-        # If all else fails, try opening RuneLite directory
+        # If all else fails, show instructions
+        self.log("⚠ Could not launch RuneLite automatically.")
+        self.log("Please launch RuneLite manually with these arguments:")
+        self.log("  --developer-mode --external-plugins")
+        self.log("Example: RuneLite.exe --developer-mode --external-plugins")
+        
+        # Try opening RuneLite directory
         runelite_dir = Path.home() / ".runelite"
         if runelite_dir.exists():
             os.startfile(runelite_dir) if os.name == 'nt' else subprocess.call(['open', runelite_dir])
-            self.log("✓ Opened RuneLite directory - please launch RuneLite manually")
-        else:
-            raise Exception("Could not launch RuneLite automatically. Please launch RuneLite manually.")
+            self.log("✓ Opened RuneLite directory for manual launch")
             
     def _installation_complete(self):
         """Handle successful installation"""
