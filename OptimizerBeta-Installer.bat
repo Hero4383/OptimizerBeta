@@ -59,7 +59,7 @@ echo [%time%] Starting OptimizerBeta Plugin Installer... >> "%LOG_FILE%"
 cls
 echo.
 echo  ================================================================================================
-echo   OptimizerBeta Plugin Installer for RuneLite
+echo   OptimizerBeta Plugin Installer for RuneLite - DEBUG MODE
 echo  ================================================================================================
 echo.
 echo  This installer will automatically:
@@ -71,8 +71,15 @@ echo   ^> Create backups of existing versions
 echo.
 echo  Installation logs will be saved for troubleshooting.
 echo.
+echo  DEBUG: Starting diagnostics...
+echo  DEBUG: Token configured: !GITHUB_TOKEN!
+echo  DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
+echo.
 echo  Press any key to continue or Ctrl+C to cancel...
 pause >nul
+
+echo.
+echo  DEBUG: Starting system verification...
 
 :: ================================================================================================
 :: SYSTEM VERIFICATION AND DIAGNOSTICS
@@ -81,11 +88,14 @@ pause >nul
 echo [%time%] Running system diagnostics... >> "%LOG_FILE%"
 echo.
 echo [1/6] Running system diagnostics...
+echo DEBUG: About to check Windows version...
 
 :: Check Windows version
+echo DEBUG: Checking Windows version...
 for /f "tokens=4-7 delims=[]. " %%i in ('ver') do (
     set "WINDOWS_VERSION=%%i.%%j.%%k.%%l"
     echo [%time%] Windows Version: !WINDOWS_VERSION! >> "%LOG_FILE%"
+    echo DEBUG: Windows Version: !WINDOWS_VERSION!
 )
 
 :: Check if running as administrator
@@ -103,42 +113,50 @@ if %errorlevel% equ 0 (
 )
 
 :: Check internet connectivity
+echo DEBUG: Testing internet connectivity...
 echo [%time%] Testing internet connectivity... >> "%LOG_FILE%"
 ping -n 1 github.com >nul 2>&1
-if %errorlevel% equ 0 (
+set "ping_result=%errorlevel%"
+if %ping_result% equ 0 (
     echo [%time%] Internet connectivity: OK >> "%LOG_FILE%"
+    echo DEBUG: Internet connectivity: OK
     set "INTERNET_OK=true"
 ) else (
-    echo [%time%] Internet connectivity: FAILED >> "%LOG_FILE%"
+    echo [%time%] Internet connectivity: FAILED (exit code: %ping_result%) >> "%LOG_FILE%"
+    echo DEBUG: Internet connectivity: FAILED (exit code: %ping_result%)
+    echo WARNING: Cannot ping GitHub, but continuing anyway...
+    echo This might be due to firewall settings blocking ping.
     set "INTERNET_OK=false"
-    echo.
-    echo  ERROR: Cannot connect to GitHub. Please check your internet connection.
-    echo  Debug: ping github.com failed
-    echo.
-    goto :error_exit
 )
 
 :: Check if curl is available
+echo DEBUG: Checking for download tools...
 curl --version >nul 2>&1
-if %errorlevel% equ 0 (
+set "curl_check=%errorlevel%"
+if %curl_check% equ 0 (
     echo [%time%] curl is available >> "%LOG_FILE%"
+    echo DEBUG: curl is available
     set "CURL_AVAILABLE=true"
 ) else (
-    echo [%time%] curl is NOT available, checking for PowerShell... >> "%LOG_FILE%"
+    echo [%time%] curl is NOT available (exit code: %curl_check%), checking for PowerShell... >> "%LOG_FILE%"
+    echo DEBUG: curl is NOT available (exit code: %curl_check%), checking for PowerShell...
     set "CURL_AVAILABLE=false"
     
     :: Check PowerShell as fallback
     powershell -Command "Get-Command Invoke-WebRequest" >nul 2>&1
-    if !errorlevel! equ 0 (
+    set "ps_check=%errorlevel%"
+    if %ps_check% equ 0 (
         echo [%time%] PowerShell Invoke-WebRequest is available >> "%LOG_FILE%"
+        echo DEBUG: PowerShell Invoke-WebRequest is available
         set "POWERSHELL_AVAILABLE=true"
     ) else (
-        echo [%time%] Neither curl nor PowerShell available for downloads >> "%LOG_FILE%"
+        echo [%time%] Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%) >> "%LOG_FILE%"
+        echo DEBUG: Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%)
+        echo ERROR: Cannot find download tools (curl or PowerShell).
+        echo This installer requires Windows 10 or newer, or curl to be installed.
         echo.
-        echo  ERROR: Cannot find download tools (curl or PowerShell).
-        echo  This installer requires Windows 10 or newer, or curl to be installed.
-        echo.
-        goto :error_exit
+        echo CONTINUING ANYWAY - some features may not work...
+        set "POWERSHELL_AVAILABLE=false"
     )
 )
 
@@ -148,10 +166,14 @@ if %errorlevel% equ 0 (
 
 echo.
 echo [2/6] Validating access token...
+echo DEBUG: Starting token validation...
+echo DEBUG: Token length: 
+echo !GITHUB_TOKEN! | find /c /v "" 
 echo [%time%] Validating GitHub token... >> "%LOG_FILE%"
 
 if "!GITHUB_TOKEN!"=="YOUR_TOKEN_HERE" (
     echo [%time%] ERROR: Token not configured >> "%LOG_FILE%"
+    echo DEBUG: ERROR - Token not configured
     echo.
     echo  ERROR: GitHub token not configured!
     echo.
@@ -163,52 +185,72 @@ if "!GITHUB_TOKEN!"=="YOUR_TOKEN_HERE" (
     echo.
     echo  The token should start with 'ghp_' and be about 40 characters long.
     echo.
-    goto :error_exit
+    echo PRESS ANY KEY TO CONTINUE DEBUGGING...
+    pause >nul
+    echo CONTINUING WITHOUT TOKEN...
+    set "GITHUB_TOKEN=NONE"
 )
 
 :: Validate token format
+echo DEBUG: Validating token format...
 echo !GITHUB_TOKEN! | findstr /R "^ghp_[A-Za-z0-9]*$" >nul
-if %errorlevel% neq 0 (
-    echo [%time%] ERROR: Invalid token format >> "%LOG_FILE%"
+set "token_format_check=%errorlevel%"
+if %token_format_check% neq 0 (
+    echo [%time%] ERROR: Invalid token format (exit code: %token_format_check%) >> "%LOG_FILE%"
+    echo DEBUG: ERROR - Invalid token format (exit code: %token_format_check%)
+    echo DEBUG: Token starts with: !GITHUB_TOKEN:~0,4!
     echo.
-    echo  ERROR: Invalid token format!
+    echo  WARNING: Invalid token format!
     echo.
     echo  The token should:
     echo  - Start with 'ghp_'
     echo  - Be approximately 40 characters long
     echo  - Contain only letters and numbers
     echo.
-    echo  Please check the token provided by the developer.
+    echo  Your token starts with: !GITHUB_TOKEN:~0,4!
+    echo  CONTINUING ANYWAY - might still work...
     echo.
-    goto :error_exit
+    pause >nul
 )
 
 echo [%time%] Token format appears valid >> "%LOG_FILE%"
 
 :: Test token by making a simple API call
+echo DEBUG: Testing token access to repository...
 echo [%time%] Testing token access to repository... >> "%LOG_FILE%"
 
+set "test_url=https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME!"
+echo DEBUG: Testing URL: !test_url!
+
 if "!CURL_AVAILABLE!"=="true" (
-    curl -s -H "Authorization: token !GITHUB_TOKEN!" https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME! >nul 2>&1
+    echo DEBUG: Using curl for token test...
+    curl -s -w "HTTP_CODE:%%{http_code}" -H "Authorization: token !GITHUB_TOKEN!" "!test_url!" > "%TEMP%\token_test.txt" 2>&1
     set "token_test_result=!errorlevel!"
+    echo DEBUG: Curl exit code: !token_test_result!
+    type "%TEMP%\token_test.txt"
 ) else (
-    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { Invoke-WebRequest -Uri 'https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME!' -Headers $headers -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
+    echo DEBUG: Using PowerShell for token test...
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { $response = Invoke-WebRequest -Uri '!test_url!' -Headers $headers -UseBasicParsing; Write-Host 'HTTP_CODE:' $response.StatusCode; Write-Host 'SUCCESS: Token works'; exit 0 } catch { Write-Host 'ERROR:' $_.Exception.Message; Write-Host 'HTTP_CODE:' $_.Exception.Response.StatusCode.Value__; exit 1 }" 2>&1
     set "token_test_result=!errorlevel!"
+    echo DEBUG: PowerShell exit code: !token_test_result!
 )
 
 if !token_test_result! neq 0 (
-    echo [%time%] ERROR: Token authentication failed >> "%LOG_FILE%"
+    echo [%time%] ERROR: Token authentication failed (exit code: !token_test_result!) >> "%LOG_FILE%"
+    echo DEBUG: ERROR - Token authentication failed (exit code: !token_test_result!)
     echo.
-    echo  ERROR: Cannot access repository with provided token!
+    echo  WARNING: Cannot access repository with provided token!
     echo.
     echo  Possible issues:
     echo  - Token is expired or invalid
     echo  - Token doesn't have access to the repository
     echo  - Network connectivity issues
     echo.
-    echo  Please verify the token with the developer.
+    echo  CONTINUING ANYWAY - direct download might still work...
     echo.
-    goto :error_exit
+    pause >nul
+) else (
+    echo DEBUG: Token authentication successful!
 )
 
 echo [%time%] Token authentication successful >> "%LOG_FILE%"
