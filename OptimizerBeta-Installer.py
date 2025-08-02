@@ -454,8 +454,8 @@ java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
             
             # Essential RuneLite JARs needed for development
             required_jars = [
-                "https://repo1.maven.org/maven2/net/runelite/client/1.11.12.2/client-1.11.12.2.jar",
-                "https://repo1.maven.org/maven2/net/runelite/runelite-api/1.11.12.2/runelite-api-1.11.12.2.jar",
+                "https://repo.runelite.net/net/runelite/client/1.11.12.2/client-1.11.12.2.jar",
+                "https://repo.runelite.net/net/runelite/runelite-api/1.11.12.2/runelite-api-1.11.12.2.jar",
                 "https://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.2.9/logback-classic-1.2.9.jar",
                 "https://repo1.maven.org/maven2/ch/qos/logback/logback-core/1.2.9/logback-core-1.2.9.jar",
                 "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar",
