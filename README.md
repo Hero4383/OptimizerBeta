@@ -56,3 +56,49 @@ Create an issue in this repository with:
 ---
 
 **Thank you for beta testing!** 🎮
+
+
+
+
+
+Setup:
+
+  - Optimizer repo (private) - contains source code
+  - OptimizerBeta repo (public) - contains installer for beta testers
+  - Beta testers get unique keys that work only once
+
+  Solution: GitHub Release with Token Authentication
+
+  Step 1: Create Release in Private Optimizer Repo
+
+  1. Build your JAR: optimizer-1.0-SNAPSHOT.jar
+  2. Create release in private Optimizer repo
+  3. Upload JAR as release asset
+
+  Step 2: Generate Fine-Grained Token
+
+  - Repository: Hero4383/Optimizer (private repo)
+  - Permissions: Contents: Read only
+  - Expiration: Set based on beta testing period
+
+  Step 3: Updated Installer (.bat file)
+
+  set "GITHUB_TOKEN=ghp_xxxxxxxxxxxx"
+  set "DOWNLOAD_URL=https://api.github.com/repos/Hero4383/Optimizer/release
+  s/latest/assets"
+
+  The installer will:
+  1. Use token to access private repo releases
+  2. Download the JAR from the latest release
+  3. Install it to RuneLite plugins folder
+
+  Step 4: Beta Key System
+
+  For one-time use keys, you'd need:
+  - Server endpoint that validates keys
+  - Each key can only download once
+  - Installer checks key before downloading
+
+  Would you like me to create this updated installer with token
+  authentication?
+

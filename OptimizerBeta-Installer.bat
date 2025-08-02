@@ -29,8 +29,11 @@ set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
 
 :: GitHub repository information (DO NOT CHANGE)
 set "REPO_OWNER=Hero4383"
-set "REPO_NAME=OptimizerBeta"
+set "REPO_NAME=Optimizer"
 set "PLUGIN_NAME=optimizer-1.0-SNAPSHOT.jar"
+
+:: Key validation endpoint (for one-time use keys)
+set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/contents/used_keys.txt"
 
 :: ================================================================================================
 :: INITIALIZATION AND LOGGING SETUP
@@ -209,6 +212,130 @@ if !token_test_result! neq 0 (
 )
 
 echo [%time%] Token authentication successful >> "%LOG_FILE%"
+
+:: ================================================================================================
+:: ONE-TIME KEY VALIDATION
+:: ================================================================================================
+
+echo.
+echo [2.5/6] Validating one-time key usage...
+echo [%time%] Checking if key has been used before... >> "%LOG_FILE%"
+
+:: Create a unique key identifier based on the token (hash-like)
+set "KEY_ID="
+for /f "delims=" %%a in ('echo !GITHUB_TOKEN! ^| findstr /R "ghp_.*"') do (
+    set "key_part=%%a"
+    set "key_part=!key_part:~4,8!"
+    set "KEY_ID=key_!key_part!"
+)
+
+if "!KEY_ID!"=="" (
+    echo [%time%] ERROR: Could not generate key identifier >> "%LOG_FILE%"
+    echo  ERROR: Invalid key format for validation.
+    goto :error_exit
+)
+
+echo [%time%] Generated key identifier: !KEY_ID! >> "%LOG_FILE%"
+
+:: Check if key has been used (download used_keys.txt from OptimizerBeta repo)
+set "USED_KEYS_FILE=%TEMP%\used_keys.txt"
+set "key_already_used=false"
+
+echo [%time%] Downloading used keys list... >> "%LOG_FILE%"
+
+if "!CURL_AVAILABLE!"=="true" (
+    curl -s -H "Authorization: token !GITHUB_TOKEN!" -H "Accept: application/vnd.github.v3.raw" "!KEY_VALIDATION_URL!" > "!USED_KEYS_FILE!" 2>&1
+    set "download_result=!errorlevel!"
+) else (
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'; 'Accept' = 'application/vnd.github.v3.raw'}; try { Invoke-WebRequest -Uri '!KEY_VALIDATION_URL!' -Headers $headers -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath '!USED_KEYS_FILE!' -Encoding UTF8; exit 0 } catch { exit 1 }" 2>&1
+    set "download_result=!errorlevel!"
+)
+
+:: If file doesn't exist (404), that's OK - means no keys used yet
+if !download_result! neq 0 (
+    echo [%time%] Used keys file not found - creating new tracking >> "%LOG_FILE%"
+    echo # Used Beta Keys > "!USED_KEYS_FILE!"
+    echo # Format: key_id timestamp >> "!USED_KEYS_FILE!"
+) else (
+    echo [%time%] Successfully downloaded used keys list >> "%LOG_FILE%"
+    
+    :: Check if this key ID is already in the file
+    findstr /C:"!KEY_ID!" "!USED_KEYS_FILE!" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [%time%] ERROR: Key has already been used >> "%LOG_FILE%"
+        set "key_already_used=true"
+    )
+)
+
+if "!key_already_used!"=="true" (
+    echo.
+    echo  ERROR: This beta key has already been used!
+    echo.
+    echo  Each beta key can only be used once to prevent unauthorized sharing.
+    echo  If you need a new key, please contact the developer.
+    echo.
+    echo  Key ID: !KEY_ID!
+    echo.
+    goto :error_exit
+)
+
+echo [%time%] Key validation passed - key is unused >> "%LOG_FILE%"
+
+:: Mark key as used by updating the used_keys.txt file
+echo [%time%] Marking key as used... >> "%LOG_FILE%"
+echo !KEY_ID! %date% %time% >> "!USED_KEYS_FILE!"
+
+:: Upload updated used_keys.txt back to the repo
+set "UPDATED_CONTENT_B64=%TEMP%\used_keys_b64.txt"
+powershell -Command "[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content '!USED_KEYS_FILE!' -Raw))) | Out-File -FilePath '!UPDATED_CONTENT_B64!' -Encoding ASCII" 2>nul
+
+if exist "!UPDATED_CONTENT_B64!" (
+    set /p "content_b64=" < "!UPDATED_CONTENT_B64!"
+    
+    :: Get current SHA of the file (needed for GitHub API update)
+    set "TEMP_SHA_JSON=%TEMP%\file_sha.json"
+    if "!CURL_AVAILABLE!"=="true" (
+        curl -s -H "Authorization: token !GITHUB_TOKEN!" "!KEY_VALIDATION_URL!" > "!TEMP_SHA_JSON!" 2>&1
+    ) else (
+        powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; Invoke-WebRequest -Uri '!KEY_VALIDATION_URL!' -Headers $headers -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath '!TEMP_SHA_JSON!' -Encoding UTF8" 2>&1
+    )
+    
+    :: Extract SHA from JSON (simplified)
+    set "file_sha="
+    for /f "tokens=2 delims=:" %%a in ('findstr /C:"sha" "!TEMP_SHA_JSON!"') do (
+        set "sha_line=%%a"
+        set "sha_line=!sha_line: =!"
+        set "sha_line=!sha_line:~1,-2!"
+        set "file_sha=!sha_line!"
+        goto :sha_found
+    )
+    
+    :sha_found
+    :: Update the file via GitHub API
+    if "!CURL_AVAILABLE!"=="true" (
+        curl -s -X PUT -H "Authorization: token !GITHUB_TOKEN!" -H "Content-Type: application/json" -d "{\"message\":\"Mark beta key as used: !KEY_ID!\",\"content\":\"!content_b64!\",\"sha\":\"!file_sha!\"}" "!KEY_VALIDATION_URL!" >nul 2>&1
+        set "update_result=!errorlevel!"
+    ) else (
+        powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'; 'Content-Type' = 'application/json'}; $body = @{message='Mark beta key as used: !KEY_ID!'; content='!content_b64!'; sha='!file_sha!'} | ConvertTo-Json; try { Invoke-WebRequest -Uri '!KEY_VALIDATION_URL!' -Method PUT -Headers $headers -Body $body -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" 2>&1
+        set "update_result=!errorlevel!"
+    )
+    
+    if !update_result! equ 0 (
+        echo [%time%] Successfully marked key as used >> "%LOG_FILE%"
+        echo  ^> Key marked as used - proceeding with installation
+    ) else (
+        echo [%time%] WARNING: Could not update used keys list >> "%LOG_FILE%"
+        echo  ^> WARNING: Could not mark key as used, but proceeding...
+    )
+) else (
+    echo [%time%] WARNING: Could not encode content for key tracking >> "%LOG_FILE%"
+    echo  ^> WARNING: Key tracking failed, but proceeding with installation...
+)
+
+:: Clean up temporary files
+del "!USED_KEYS_FILE!" >nul 2>&1
+del "!UPDATED_CONTENT_B64!" >nul 2>&1
+del "!TEMP_SHA_JSON!" >nul 2>&1
 
 :: ================================================================================================
 :: RUNELITE DETECTION
