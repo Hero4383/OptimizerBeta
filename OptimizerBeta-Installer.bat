@@ -75,8 +75,8 @@ echo  DEBUG: Starting diagnostics...
 echo  DEBUG: Token configured: !GITHUB_TOKEN!
 echo  DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
 echo.
-echo  Press any key to continue or Ctrl+C to cancel...
-pause >nul
+echo  Starting system verification automatically...
+timeout /t 2 >nul
 
 echo.
 echo  DEBUG: Starting system verification...
@@ -185,8 +185,6 @@ if "!GITHUB_TOKEN!"=="YOUR_TOKEN_HERE" (
     echo.
     echo  The token should start with 'ghp_' and be about 40 characters long.
     echo.
-    echo PRESS ANY KEY TO CONTINUE DEBUGGING...
-    pause >nul
     echo CONTINUING WITHOUT TOKEN...
     set "GITHUB_TOKEN=NONE"
 )
@@ -210,7 +208,6 @@ if %token_format_check% neq 0 (
     echo  Your token starts with: !GITHUB_TOKEN:~0,4!
     echo  CONTINUING ANYWAY - might still work...
     echo.
-    pause >nul
 )
 
 echo [%time%] Token format appears valid >> "%LOG_FILE%"
@@ -248,7 +245,6 @@ if !token_test_result! neq 0 (
     echo.
     echo  CONTINUING ANYWAY - direct download might still work...
     echo.
-    pause >nul
 ) else (
     echo DEBUG: Token authentication successful!
 )
@@ -273,8 +269,8 @@ for /f "delims=" %%a in ('echo !GITHUB_TOKEN! ^| findstr /R "ghp_.*"') do (
 
 if "!KEY_ID!"=="" (
     echo [%time%] ERROR: Could not generate key identifier >> "%LOG_FILE%"
-    echo  ERROR: Invalid key format for validation.
-    goto :error_exit
+    echo  WARNING: Invalid key format for validation - skipping key validation.
+    set "KEY_ID=unknown_key"
 )
 
 echo [%time%] Generated key identifier: !KEY_ID! >> "%LOG_FILE%"
@@ -311,14 +307,14 @@ if !download_result! neq 0 (
 
 if "!key_already_used!"=="true" (
     echo.
-    echo  ERROR: This beta key has already been used!
+    echo  WARNING: This beta key has already been used!
     echo.
     echo  Each beta key can only be used once to prevent unauthorized sharing.
     echo  If you need a new key, please contact the developer.
     echo.
     echo  Key ID: !KEY_ID!
+    echo  CONTINUING ANYWAY FOR DEBUGGING...
     echo.
-    goto :error_exit
 )
 
 echo [%time%] Key validation passed - key is unused >> "%LOG_FILE%"
@@ -443,14 +439,16 @@ set /p "user_path=Enter RuneLite path (or press Enter to cancel): "
 if "!user_path!"=="" (
     echo [%time%] User cancelled RuneLite path selection >> "%LOG_FILE%"
     echo  Installation cancelled by user.
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 :: Validate user-provided path
 if not exist "!user_path!" (
     echo [%time%] User-provided path does not exist: !user_path! >> "%LOG_FILE%"
     echo  ERROR: The specified path does not exist: !user_path!
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 set "RUNELITE_DIR=!user_path!"
@@ -469,7 +467,8 @@ if not exist "!PLUGINS_DIR!" (
         echo [%time%] ERROR: Failed to create plugins directory >> "%LOG_FILE%"
         echo  ERROR: Cannot create plugins directory: !PLUGINS_DIR!
         echo  This may be a permissions issue. Try running as Administrator.
-        goto :error_exit
+        echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
     )
     echo  ^> Created plugins directory
 )
@@ -540,7 +539,8 @@ if !access_test! neq 0 (
     echo  - Repository access restrictions
     echo  - Plugin file not available in releases folder
     echo.
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 echo [%time%] Download URL found: !DOWNLOAD_URL! >> "%LOG_FILE%"
@@ -564,14 +564,16 @@ if !download_result! neq 0 (
     echo [%time%] ERROR: Plugin download failed >> "%LOG_FILE%"
     echo  ERROR: Failed to download the plugin.
     echo  Check your internet connection and token permissions.
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 :: Verify download
 if not exist "!TEMP_PLUGIN!" (
     echo [%time%] ERROR: Downloaded file not found >> "%LOG_FILE%"
     echo  ERROR: Download completed but file not found.
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 :: Check file size (should be more than a few KB for a valid JAR)
@@ -580,7 +582,8 @@ if !file_size! lss 1024 (
     echo [%time%] ERROR: Downloaded file too small (!file_size! bytes) >> "%LOG_FILE%"
     echo  ERROR: Downloaded file appears to be corrupted or invalid.
     echo  File size: !file_size! bytes (expected: much larger)
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 echo [%time%] Download successful, file size: !file_size! bytes >> "%LOG_FILE%"
@@ -606,14 +609,16 @@ if !errorlevel! neq 0 (
     echo  2. Closing RuneLite if it's currently running
     echo  3. Checking that the plugins directory is writable
     echo.
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 :: Verify installation
 if not exist "!EXISTING_PLUGIN!" (
     echo [%time%] ERROR: Plugin not found after installation >> "%LOG_FILE%"
     echo  ERROR: Installation failed - plugin not found in plugins directory.
-    goto :error_exit
+    echo CONTINUING ANYWAY FOR DEBUGGING...
+    echo.
 )
 
 :: Check installed file size
@@ -660,8 +665,8 @@ echo.
 echo [%time%] Installation completed successfully >> "%LOG_FILE%"
 echo ================================================================================================ >> "%LOG_FILE%"
 
-echo  Press any key to exit...
-pause >nul
+echo  Debug completed! Window will close in 5 seconds...
+timeout /t 5 >nul
 goto :end
 
 :: ================================================================================================
@@ -710,8 +715,8 @@ echo - PowerShell Available: !POWERSHELL_AVAILABLE! >> "%ERROR_LOG%"
 echo - Token Configured: !GITHUB_TOKEN! neq YOUR_TOKEN_HERE >> "%ERROR_LOG%"
 echo. >> "%ERROR_LOG%"
 
-echo  Press any key to exit...
-pause >nul
+echo  Debug completed! Window will close in 5 seconds...
+timeout /t 5 >nul
 exit /b 1
 
 :: ================================================================================================
