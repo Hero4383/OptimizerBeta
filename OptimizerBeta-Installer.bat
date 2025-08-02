@@ -1,244 +1,270 @@
 @echo off
-echo DEBUG: Script starting...
-
-REM Force create log file IMMEDIATELY before anything else
-set "CRASH_LOG=%TEMP%\optimizer_crash_%RANDOM%.log"
-echo Script started at %date% %time% > "%CRASH_LOG%"
-echo DEBUG: Crash log created: %CRASH_LOG%
-echo DEBUG: Crash log created: %CRASH_LOG% >> "%CRASH_LOG%"
-
-echo DEBUG: Enabling delayed expansion...
-echo DEBUG: Enabling delayed expansion... >> "%CRASH_LOG%"
 setlocal EnableDelayedExpansion
-echo DEBUG: Delayed expansion enabled
-echo DEBUG: Delayed expansion enabled >> "%CRASH_LOG%"
+
+REM === IMMEDIATE CRASH-PROOF LOGGING ===
+echo [INIT] Script started at %date% %time% > crash_debug.log 2>&1
+echo [INIT] EnableDelayedExpansion set >> crash_debug.log 2>&1
+echo [INIT] Creating multiple log files for redundancy >> crash_debug.log 2>&1
+
+REM Create logs in multiple locations
+echo [LOG] Primary log started > optimizer_install.log 2>&1
+echo [LOG] Primary log started > "%USERPROFILE%\optimizer_install.log" 2>&1
+echo [LOG] Primary log started > "%TEMP%\optimizer_install.log" 2>&1
+
+REM Set error handling - continue on all errors
+set CRASH_LOG=crash_debug.log
+set MAIN_LOG=optimizer_install.log
+set BACKUP_LOG=%USERPROFILE%\optimizer_install.log
+set TEMP_LOG=%TEMP%\optimizer_install.log
+
+echo [INIT] Log files configured >> !CRASH_LOG! 2>&1
+echo [INIT] Starting configuration phase >> !CRASH_LOG! 2>&1
 
 REM ================================================================================================
-REM CONFIGURATION - MUST BE SET FIRST
+REM CONFIGURATION PHASE - ALL VARIABLES SET HERE
 REM ================================================================================================
-echo DEBUG: Setting configuration variables...
-echo DEBUG: Setting configuration variables... >> "%CRASH_LOG%"
+echo [CONFIG] Setting all configuration variables >> !CRASH_LOG! 2>&1
 
-REM Replace YOUR_TOKEN_HERE with the token provided by the developer
+REM Core configuration
 set "GITHUB_TOKEN=YOUR_TOKEN_HERE"
-echo Config: GITHUB_TOKEN set >> "%CRASH_LOG%"
-
-REM GitHub repository information (DO NOT CHANGE)
 set "REPO_OWNER=Hero4383"
-echo Config: REPO_OWNER set >> "%CRASH_LOG%"
 set "REPO_NAME=Optimizer"
-echo Config: REPO_NAME set >> "%CRASH_LOG%"
 set "PLUGIN_NAME=optimizer-1.0-SNAPSHOT.jar"
-echo Config: PLUGIN_NAME set >> "%CRASH_LOG%"
-
-REM Key validation endpoint (for one-time use keys)
 set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/contents/used_keys.txt"
-echo Config: KEY_VALIDATION_URL set >> "%CRASH_LOG%"
 
-echo DEBUG: Configuration set
-echo DEBUG: Configuration set >> "%CRASH_LOG%"
-echo DEBUG: Token: !GITHUB_TOKEN:~0,10!...
-echo DEBUG: Token: !GITHUB_TOKEN:~0,10!... >> "%CRASH_LOG%"
-echo DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
-echo DEBUG: Repo: !REPO_OWNER!/!REPO_NAME! >> "%CRASH_LOG%"
+echo [CONFIG] Basic variables set >> !CRASH_LOG! 2>&1
+echo [CONFIG] GITHUB_TOKEN configured >> !CRASH_LOG! 2>&1
+echo [CONFIG] REPO_OWNER=!REPO_OWNER! >> !CRASH_LOG! 2>&1
+echo [CONFIG] REPO_NAME=!REPO_NAME! >> !CRASH_LOG! 2>&1
+echo [CONFIG] PLUGIN_NAME=!PLUGIN_NAME! >> !CRASH_LOG! 2>&1
 
-echo DEBUG: Setting window title...
-echo DEBUG: Setting window title... >> "%CRASH_LOG%"
-title OptimizerBeta Plugin Installer
-echo DEBUG: Title set
-echo DEBUG: Title set >> "%CRASH_LOG%"
-
-:: ================================================================================================
-:: OptimizerBeta RuneLite Plugin Installer
-:: 
-:: This script automatically downloads and installs the OptimizerBeta plugin for RuneLite
-:: Features:
-:: - Automatic RuneLite detection
-:: - Plugin download from GitHub
-:: - Installation verification
-:: - Extensive error handling and logging
-:: - Backup of existing versions
-:: - Debug information for troubleshooting
-::
-:: Instructions:
-:: 1. Edit this file and replace YOUR_TOKEN_HERE with the token provided by the developer
-:: 2. Double-click this file to run the installer
-:: 3. Follow the on-screen prompts
-:: ================================================================================================
-
-
-:: ================================================================================================
-:: INITIALIZATION AND LOGGING SETUP
-:: ================================================================================================
-
-:: Create timestamp for logs
-echo DEBUG: Creating timestamp...
-echo DEBUG: Creating timestamp... >> "%CRASH_LOG%"
-set "timestamp=manual_timestamp"
-echo timestamp set to manual_timestamp >> "%CRASH_LOG%"
-echo DEBUG: Attempting to get system time...
-echo DEBUG: Attempting to get system time... >> "%CRASH_LOG%"
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value 2^>nul') do (
-    if not "%%a"=="" set "dt=%%a"
-    echo wmic loop iteration completed >> "%CRASH_LOG%"
-)
-echo DEBUG: dt value: !dt!
-echo DEBUG: dt value: !dt! >> "%CRASH_LOG%"
-if defined dt (
-    echo DEBUG: Processing timestamp...
-    echo DEBUG: Processing timestamp... >> "%CRASH_LOG%"
-    set "timestamp=!dt:~0,4!-!dt:~4,2!-!dt:~6,2!_!dt:~8,2!-!dt:~10,2!-!dt:~12,2!"
-    echo DEBUG: Timestamp created: !timestamp!
-    echo DEBUG: Timestamp created: !timestamp! >> "%CRASH_LOG%"
+REM Test variable expansion safety
+echo [TEST] Testing variable expansion >> !CRASH_LOG! 2>&1
+if defined GITHUB_TOKEN (
+    echo [TEST] GITHUB_TOKEN is defined, length check >> !CRASH_LOG! 2>&1
+    if "!GITHUB_TOKEN!"=="YOUR_TOKEN_HERE" (
+        echo [TEST] Token needs to be replaced by user >> !CRASH_LOG! 2>&1
+    ) else (
+        echo [TEST] Token appears to be set >> !CRASH_LOG! 2>&1
+    )
 ) else (
-    echo WARNING: Could not get system time, using default
-    echo WARNING: Could not get system time, using default >> "%CRASH_LOG%"
-    set "timestamp=default_time"
+    echo [ERROR] GITHUB_TOKEN is not defined >> !CRASH_LOG! 2>&1
 )
 
-:: Set up log files
-echo DEBUG: Setting up log files...
+echo [CONFIG] Variable testing complete >> !CRASH_LOG! 2>&1
+
+REM Safe title setting
+echo [UI] Setting window title >> !CRASH_LOG! 2>&1
+title OptimizerBeta Plugin Installer - Debug Mode
+echo [UI] Title set successfully >> !CRASH_LOG! 2>&1
+
+REM ================================================================================================
+REM OptimizerBeta RuneLite Plugin Installer - CRASH-PROOF VERSION
+REM 
+REM This script automatically downloads and installs the OptimizerBeta plugin for RuneLite
+REM Features:
+REM - Comprehensive crash prevention and error logging
+REM - Automatic RuneLite detection with fallbacks
+REM - Plugin download from GitHub with multiple retry methods
+REM - Installation verification and rollback capability
+REM - Extensive debug logging to multiple locations
+REM - Backup of existing versions
+REM
+REM Instructions:
+REM 1. Edit this file and replace YOUR_TOKEN_HERE with the token provided by the developer
+REM 2. Right-click and "Run as administrator" (recommended)
+REM 3. Check the log files if any issues occur
+REM ================================================================================================
+
+
+REM ================================================================================================
+REM DISPLAY USER INTERFACE
+REM ================================================================================================
+echo [UI] Clearing screen and showing header >> !CRASH_LOG! 2>&1
+cls
+echo.
+echo  ================================================================================================
+echo   OptimizerBeta Plugin Installer - CRASH-PROOF DEBUG VERSION
+echo  ================================================================================================
+echo.
+echo  Status: Initializing...
+echo  Logs: crash_debug.log, optimizer_install.log
+echo.
+echo  This installer will:
+echo   ^> Test all systems before proceeding
+echo   ^> Download the latest OptimizerBeta plugin
+echo   ^> Install to RuneLite automatically
+echo   ^> Create detailed logs for troubleshooting
+echo.
+echo  Starting diagnostic phase...
+echo.
+
+echo [UI] Header displayed successfully >> !CRASH_LOG! 2>&1
+
+REM ================================================================================================
+REM SAFE TIMESTAMP CREATION
+REM ================================================================================================
+echo [TIME] Creating timestamp >> !CRASH_LOG! 2>&1
+set "timestamp=fallback_timestamp"
+
+REM Try to get actual timestamp, but don't crash if it fails
+for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value 2^>nul') do (
+    if not "%%a"=="" (
+        set "dt=%%a"
+        echo [TIME] Got system time: %%a >> !CRASH_LOG! 2>&1
+    )
+)
+
+if defined dt (
+    echo [TIME] Processing timestamp >> !CRASH_LOG! 2>&1
+    set "timestamp=!dt:~0,4!-!dt:~4,2!-!dt:~6,2!_!dt:~8,2!-!dt:~10,2!-!dt:~12,2!"
+    echo [TIME] Timestamp created: !timestamp! >> !CRASH_LOG! 2>&1
+) else (
+    echo [TIME] Using fallback timestamp >> !CRASH_LOG! 2>&1
+)
+
+echo [TIME] Timestamp setup complete: !timestamp! >> !CRASH_LOG! 2>&1
+
+REM ================================================================================================
+REM ENHANCED LOG FILE SETUP
+REM ================================================================================================
+echo [LOGS] Setting up comprehensive logging >> !CRASH_LOG! 2>&1
+
+REM Set up multiple log files with fallbacks
 set "LOG_FILE=%USERPROFILE%\optimizer_install_!timestamp!.log"
 set "ERROR_LOG=%USERPROFILE%\optimizer_error_!timestamp!.log"
 set "DEBUG_LOG=%USERPROFILE%\optimizer_debug_!timestamp!.log"
 
-echo DEBUG: Log file: !LOG_FILE!
-echo DEBUG: Error log: !ERROR_LOG!
-echo DEBUG: Debug log: !DEBUG_LOG!
+echo [LOGS] Primary log: !LOG_FILE! >> !CRASH_LOG! 2>&1
+echo [LOGS] Error log: !ERROR_LOG! >> !CRASH_LOG! 2>&1
+echo [LOGS] Debug log: !DEBUG_LOG! >> !CRASH_LOG! 2>&1
 
-:: Initialize logging
-echo DEBUG: Initializing log file...
-echo DEBUG: Trying to write to: !LOG_FILE!
-
-REM First create the file with echo
-echo Log Start > "!LOG_FILE!" 2>nul
+REM Test log file creation
+echo Log initialized at %date% %time% > "!LOG_FILE!" 2>nul
 if not exist "!LOG_FILE!" (
-    echo WARNING: Cannot write to USERPROFILE, trying TEMP...
+    echo [LOGS] USERPROFILE write failed, trying TEMP >> !CRASH_LOG! 2>&1
     set "LOG_FILE=%TEMP%\optimizer_install_!timestamp!.log"
     set "ERROR_LOG=%TEMP%\optimizer_error_!timestamp!.log"
     set "DEBUG_LOG=%TEMP%\optimizer_debug_!timestamp!.log"
-    echo DEBUG: New log location: !LOG_FILE!
-    echo Log Start > "!LOG_FILE!" 2>nul
+    echo Log initialized at %date% %time% > "!LOG_FILE!" 2>nul
 )
 
 if exist "!LOG_FILE!" (
-    echo DEBUG: Log file created successfully
+    echo [LOGS] Main log file created successfully >> !CRASH_LOG! 2>&1
     echo ================================================================================================ >> "!LOG_FILE!" 2>nul
-    echo OptimizerBeta Plugin Installer - Started at %date% %time% >> "!LOG_FILE!" 2>nul
+    echo OptimizerBeta Plugin Installer - CRASH-PROOF VERSION >> "!LOG_FILE!" 2>nul
+    echo Started: %date% %time% >> "!LOG_FILE!" 2>nul
+    echo Timestamp: !timestamp! >> "!LOG_FILE!" 2>nul
     echo ================================================================================================ >> "!LOG_FILE!" 2>nul
 ) else (
-    echo WARNING: Could not create log file, continuing without logging
-    set "LOG_FILE=nul"
+    echo [LOGS] WARNING: Could not create main log, using crash log only >> !CRASH_LOG! 2>&1
+    set "LOG_FILE=!CRASH_LOG!"
 )
 
-:: Display header
+echo [LOGS] Log setup complete >> !CRASH_LOG! 2>&1
+
+REM Update display
+echo [UI] Updating status display >> !CRASH_LOG! 2>&1
 cls
 echo.
 echo  ================================================================================================
-echo   OptimizerBeta Plugin Installer for RuneLite - DEBUG MODE
+echo   OptimizerBeta Plugin Installer - RUNNING DIAGNOSTICS
 echo  ================================================================================================
 echo.
-echo  This installer will automatically:
-echo   ^> Detect your RuneLite installation
-echo   ^> Download the latest OptimizerBeta plugin
-echo   ^> Install the plugin to the correct directory
-echo   ^> Verify the installation
-echo   ^> Create backups of existing versions
+echo  Status: System verification in progress...
+echo  Logs: !CRASH_LOG!, !LOG_FILE!
 echo.
-echo  Installation logs will be saved for troubleshooting.
+echo  Configuration:
+echo   ^> Token: [CONFIGURED]
+echo   ^> Repository: !REPO_OWNER!/!REPO_NAME!
+echo   ^> Plugin: !PLUGIN_NAME!
 echo.
-echo  DEBUG: Starting diagnostics...
-echo  DEBUG: Token configured: !GITHUB_TOKEN!
-echo  DEBUG: Repo: !REPO_OWNER!/!REPO_NAME!
+echo  Starting comprehensive system checks...
 echo.
-echo  Starting system verification automatically...
-echo DEBUG: Waiting 2 seconds...
-timeout /t 2 /nobreak >nul 2>&1
-echo DEBUG: Wait complete
 
-echo.
-echo  DEBUG: Starting system verification...
+echo [UI] Updated display, starting diagnostics >> !CRASH_LOG! 2>&1
 
-:: ================================================================================================
-:: SYSTEM VERIFICATION AND DIAGNOSTICS
-:: ================================================================================================
+REM ================================================================================================
+REM COMPREHENSIVE SYSTEM DIAGNOSTICS
+REM ================================================================================================
+echo [DIAG] Starting system verification phase >> !CRASH_LOG! 2>&1
+echo [%time%] === SYSTEM DIAGNOSTICS PHASE === >> "!LOG_FILE!" 2>nul
 
-echo [%time%] Running system diagnostics... >> "!LOG_FILE!" 2>nul
-echo.
-echo [1/6] Running system diagnostics...
-echo DEBUG: About to check Windows version...
+echo [1/6] System diagnostics...
+echo [DIAG] Checking Windows version >> !CRASH_LOG! 2>&1
 
-:: Check Windows version
-echo DEBUG: Checking Windows version...
+REM Windows version check with error handling
 set "WINDOWS_VERSION=Unknown"
 for /f "tokens=4-7 delims=[]. " %%i in ('ver 2^>nul') do (
-    set "WINDOWS_VERSION=%%i.%%j.%%k.%%l"
+    if not "%%i"=="" (
+        set "WINDOWS_VERSION=%%i.%%j.%%k.%%l"
+        echo [DIAG] Version detected: %%i.%%j.%%k.%%l >> !CRASH_LOG! 2>&1
+    )
 )
-echo DEBUG: Windows Version: !WINDOWS_VERSION!
+echo [DIAG] Windows Version: !WINDOWS_VERSION! >> !CRASH_LOG! 2>&1
 echo [%time%] Windows Version: !WINDOWS_VERSION! >> "!LOG_FILE!" 2>nul
+echo   ^> Windows Version: !WINDOWS_VERSION!
 
-:: Check if running as administrator
-echo DEBUG: Checking admin status...
+REM Administrator privileges check
+echo [DIAG] Checking administrator status >> !CRASH_LOG! 2>&1
 net session >nul 2>&1
-if %errorlevel% equ 0 (
-    echo DEBUG: Running with Administrator privileges
-    echo [%time%] Running with Administrator privileges >> "!LOG_FILE!" 2>nul
+set "admin_check_result=%errorlevel%"
+if !admin_check_result! equ 0 (
     set "IS_ADMIN=true"
+    echo [DIAG] Administrator privileges: YES >> !CRASH_LOG! 2>&1
+    echo [%time%] Running with Administrator privileges >> "!LOG_FILE!" 2>nul
+    echo   ^> Administrator: YES
 ) else (
-    echo DEBUG: NOT running as Administrator
-    echo [%time%] NOT running as Administrator >> "!LOG_FILE!" 2>nul
     set "IS_ADMIN=false"
-    echo.
-    echo  WARNING: Not running as Administrator. This may cause permission issues.
-    echo  If installation fails, try right-clicking this file and selecting "Run as administrator"
-    echo.
+    echo [DIAG] Administrator privileges: NO >> !CRASH_LOG! 2>&1
+    echo [%time%] NOT running as Administrator >> "!LOG_FILE!" 2>nul
+    echo   ^> Administrator: NO - may cause permission issues
+    echo     TIP: Right-click and "Run as administrator" if problems occur
 )
 
-:: Check internet connectivity
-echo DEBUG: Testing internet connectivity...
-echo [%time%] Testing internet connectivity... >> "!LOG_FILE!" 2>nul
+REM Internet connectivity test
+echo [DIAG] Testing internet connectivity >> !CRASH_LOG! 2>&1
 ping -n 1 github.com >nul 2>&1
 set "ping_result=%errorlevel%"
-if %ping_result% equ 0 (
-    echo [%time%] Internet connectivity: OK >> "!LOG_FILE!" 2>nul
-    echo DEBUG: Internet connectivity: OK
+if !ping_result! equ 0 (
     set "INTERNET_OK=true"
+    echo [DIAG] Internet connectivity: OK >> !CRASH_LOG! 2>&1
+    echo [%time%] Internet connectivity: OK >> "!LOG_FILE!" 2>nul
+    echo   ^> Internet: CONNECTED
 ) else (
-    echo [%time%] Internet connectivity: FAILED (exit code: %ping_result%) >> "!LOG_FILE!" 2>nul
-    echo DEBUG: Internet connectivity: FAILED (exit code: %ping_result%)
-    echo WARNING: Cannot ping GitHub, but continuing anyway...
-    echo This might be due to firewall settings blocking ping.
     set "INTERNET_OK=false"
+    echo [DIAG] Internet connectivity: FAILED (code: !ping_result!) >> !CRASH_LOG! 2>&1
+    echo [%time%] Internet: FAILED (code: !ping_result!) >> "!LOG_FILE!" 2>nul
+    echo   ^> Internet: PING FAILED - continuing anyway (may be firewall)
 )
 
-:: Check if curl is available
-echo DEBUG: Checking for download tools...
+REM Download tools verification
+echo [DIAG] Checking download capabilities >> !CRASH_LOG! 2>&1
 curl --version >nul 2>&1
 set "curl_check=%errorlevel%"
-if %curl_check% equ 0 (
-    echo [%time%] curl is available >> "!LOG_FILE!" 2>nul
-    echo DEBUG: curl is available
+if !curl_check! equ 0 (
     set "CURL_AVAILABLE=true"
+    set "POWERSHELL_AVAILABLE=true"
+    echo [DIAG] curl: AVAILABLE >> !CRASH_LOG! 2>&1
+    echo [%time%] curl is available >> "!LOG_FILE!" 2>nul
+    echo   ^> Download tool: curl (preferred)
 ) else (
-    echo [%time%] curl is NOT available (exit code: %curl_check%), checking for PowerShell... >> "!LOG_FILE!" 2>nul
-    echo DEBUG: curl is NOT available (exit code: %curl_check%), checking for PowerShell...
     set "CURL_AVAILABLE=false"
+    echo [DIAG] curl: NOT AVAILABLE, checking PowerShell >> !CRASH_LOG! 2>&1
     
-    :: Check PowerShell as fallback
     powershell -Command "Get-Command Invoke-WebRequest" >nul 2>&1
     set "ps_check=%errorlevel%"
-    if %ps_check% equ 0 (
-        echo [%time%] PowerShell Invoke-WebRequest is available >> "!LOG_FILE!" 2>nul
-        echo DEBUG: PowerShell Invoke-WebRequest is available
+    if !ps_check! equ 0 (
         set "POWERSHELL_AVAILABLE=true"
+        echo [DIAG] PowerShell: AVAILABLE >> !CRASH_LOG! 2>&1
+        echo [%time%] PowerShell download available >> "!LOG_FILE!" 2>nul
+        echo   ^> Download tool: PowerShell (fallback)
     ) else (
-        echo [%time%] Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%) >> "!LOG_FILE!" 2>nul
-        echo DEBUG: Neither curl nor PowerShell available for downloads (PowerShell exit code: %ps_check%)
-        echo ERROR: Cannot find download tools (curl or PowerShell).
-        echo This installer requires Windows 10 or newer, or curl to be installed.
-        echo.
-        echo CONTINUING ANYWAY - some features may not work...
         set "POWERSHELL_AVAILABLE=false"
+        echo [DIAG] Neither curl nor PowerShell available >> !CRASH_LOG! 2>&1
+        echo [%time%] NO download tools available >> "!LOG_FILE!" 2>nul
+        echo   ^> Download tool: NONE AVAILABLE - installation may fail
+        echo     Requires Windows 10+ or curl installation
     )
 )
 
@@ -848,20 +874,28 @@ echo ===========================================================================
 
 echo  Debug completed! Window will close in 5 seconds...
 timeout /t 5 >nul
-goto :end
-
-
-:: ================================================================================================
-:: CLEANUP AND EXIT
-:: ================================================================================================
-
+REM ================================================================================================
+REM SCRIPT COMPLETION
+REM ================================================================================================
 :end
-echo [%time%] Installer finished >> "!LOG_FILE!" 2>nul
+echo [COMPLETE] Installer finished successfully >> !CRASH_LOG! 2>&1
+echo [%time%] Installer completed >> "!LOG_FILE!" 2>nul
+
 echo.
-echo ================================================================================================
-echo INSTALLER COMPLETE - Check output above for any errors
-echo ================================================================================================
+echo  ================================================================================================
+echo   INSTALLATION COMPLETE
+echo  ================================================================================================
 echo.
-echo Closing in 10 seconds...
-timeout /t 10
+echo  Status: All phases completed
+echo  Logs saved to: !CRASH_LOG!, !LOG_FILE!
+echo.
+echo  If any errors occurred, check the log files above.
+echo  Installation will continue automatically after diagnostics.
+echo.
+echo  Window will close in 10 seconds...
+echo.
+
+echo [COMPLETE] Showing completion message >> !CRASH_LOG! 2>&1
+timeout /t 10 >nul 2>&1
+echo [COMPLETE] Script ending normally >> !CRASH_LOG! 2>&1
 endlocal
