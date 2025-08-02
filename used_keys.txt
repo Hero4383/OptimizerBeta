@@ -1,3 +1,83 @@
 # Used Beta Keys
 # Format: key_id timestamp
 # This file tracks which beta keys have been used to prevent reuse
+
+
+
+
+===============================================================================================
+  OptimizerBeta Plugin Installer - RUNNING DIAGNOSTICS
+ ================================================================================================
+
+ Status: System verification in progress...
+ Logs: crash_debug.log, C:\Users\Santa\optimizer_install_2025-08-01_23-04-40.log
+
+ Configuration:
+  > Token: [CONFIGURED]
+  > Repository: Hero4383/Optimizer
+  > Plugin: optimizer-1.0-SNAPSHOT.jar
+
+ Starting comprehensive system checks...
+
+[1/6] System diagnostics...
+  > Windows Version: 10.0.19045.4529
+  > Administrator: YES
+  > Internet: CONNECTED
+  > Internet: PING FAILED - continuing anyway (may be firewall)                                                           > Download tool: curl (preferred                                                                                        > Download tool: PowerShell (fallback                                                                                   > Download tool: NONE AVAILABLE - installation may fail                                                                   Requires Windows 10+ or curl installation
+
+[2/6] Validating access token...
+DEBUG: Starting token validation...
+DEBUG: Token length:
+1
+DEBUG: Validating token format...
+DEBUG: ERROR - Invalid token format (exit code: 1)
+DEBUG: Token starts with: gith
+
+ WARNING: Invalid token format
+
+ The token should:
+ - Start with 'ghp_'
+ - Be approximately 40 characters long                                                                                   - Contain only letters and numbers                                                                                                                                                                                                              Your token starts with: gith                                                                                            CONTINUING ANYWAY - might still work...
+
+DEBUG: Testing token access to repository...
+DEBUG: Testing URL: https://api.github.com/repos/Hero4383/Optimizer
+DEBUG: Using PowerShell for token test...
+HTTP_CODE: 200
+SUCCESS: Token works
+DEBUG: PowerShell exit code: 0
+DEBUG: ERROR - Token authentication failed (exit code: 0)
+
+ WARNING: Cannot access repository with provided token
+
+ Possible issues:
+ - Token is expired or invalid
+ - Token doesn't have access to the repository
+ - Network connectivity issues
+
+ CONTINUING ANYWAY - direct download might still work...
+
+DEBUG: Token authentication successful
+
+[2.5/6] Validating one-time key usage...
+ WARNING: Invalid key format for validation - skipping key validation.
+ > WARNING: Could not mark key as used, but proceeding...
+ > WARNING: Key tracking failed, but proceeding with installation...
+
+[3/6] Detecting RuneLite installation...
+ > RuneLite found: C:\Users\Santa\.runelite
+ > Plugins directory: C:\Users\Santa\.runelite\plugins
+
+[4/6] Checking for existing plugin...
+ > Found existing OptimizerBeta plugin
+ > Backup created: optimizer-1.0-SNAPSHOT.jar.backup.2025-08-01_23-04-40
+
+[5/6] Downloading latest plugin...
+DEBUG: Setting up download URL...
+DEBUG: Testing different branch possibilities...
+DEBUG: Trying master branch URL: https://raw.githubusercontent.com/Hero4383/Optimizer/master/releases/optimizer-latest.jar
+DEBUG: Testing URL with curl...
+DEBUG: Master branch HTTP status: 200
+DEBUG: SUCCESS - Using master branch
+DEBUG: Testing access with token...
+DEBUG: Token being used: github_pat...
+DEBUG: Using PowerShell to test access...
