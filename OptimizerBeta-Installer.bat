@@ -1,5 +1,12 @@
 @echo off
+echo DEBUG: Script starting...
+echo DEBUG: Enabling delayed expansion...
 setlocal EnableDelayedExpansion
+if !errorlevel! neq 0 (
+    echo ERROR: Failed to enable delayed expansion
+    exit /b 1
+)
+echo DEBUG: Setting window title...
 title OptimizerBeta Plugin Installer
 
 :: ================================================================================================
@@ -40,20 +47,39 @@ set "KEY_VALIDATION_URL=https://api.github.com/repos/Hero4383/OptimizerBeta/cont
 :: ================================================================================================
 
 :: Create timestamp for logs
+echo DEBUG: Creating timestamp...
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
-set "timestamp=%dt:~0,4%-%dt:~4,2%-%dt:~6,2%_%dt:~8,2%-%dt:~10,2%-%dt:~12,2%"
+if "!dt!"=="" (
+    echo ERROR: Failed to get system time
+    set "timestamp=unknown_time"
+) else (
+    set "timestamp=!dt:~0,4!-!dt:~4,2!-!dt:~6,2!_!dt:~8,2!-!dt:~10,2!-!dt:~12,2!"
+    echo DEBUG: Timestamp created: !timestamp!
+)
 
 :: Set up log files
-set "LOG_FILE=optimizer_install_%timestamp%.log"
-set "ERROR_LOG=optimizer_error_%timestamp%.log"
-set "DEBUG_LOG=optimizer_debug_%timestamp%.log"
+echo DEBUG: Setting up log files...
+set "LOG_FILE=%USERPROFILE%\optimizer_install_!timestamp!.log"
+set "ERROR_LOG=%USERPROFILE%\optimizer_error_!timestamp!.log"
+set "DEBUG_LOG=%USERPROFILE%\optimizer_debug_!timestamp!.log"
+
+echo DEBUG: Log file: !LOG_FILE!
+echo DEBUG: Error log: !ERROR_LOG!
+echo DEBUG: Debug log: !DEBUG_LOG!
 
 :: Initialize logging
-echo ================================================================================================ > "%LOG_FILE%"
-echo OptimizerBeta Plugin Installer - Started at %date% %time% >> "%LOG_FILE%"
-echo ================================================================================================ >> "%LOG_FILE%"
+echo DEBUG: Initializing log file...
+echo ================================================================================================ > "!LOG_FILE!" 2>&1
+if !errorlevel! neq 0 (
+    echo ERROR: Cannot write to log file: !LOG_FILE!
+    echo Trying alternative location...
+    set "LOG_FILE=%TEMP%\optimizer_install_!timestamp!.log"
+    echo DEBUG: New log location: !LOG_FILE!
+)
+echo OptimizerBeta Plugin Installer - Started at %date% %time% >> "!LOG_FILE!" 2>&1
+echo ================================================================================================ >> "!LOG_FILE!" 2>&1
 
-echo [%time%] Starting OptimizerBeta Plugin Installer... >> "%LOG_FILE%"
+echo [%time%] Starting OptimizerBeta Plugin Installer... >> "!LOG_FILE!" 2>&1
 
 :: Display header
 cls
@@ -516,18 +542,89 @@ echo [5/6] Downloading latest plugin...
 echo [%time%] Starting plugin download... >> "%LOG_FILE%"
 
 :: Use direct download from releases folder (simpler and more reliable)
-set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/master/releases/optimizer-latest.jar"
+echo DEBUG: Setting up download URL...
+echo DEBUG: Testing different branch possibilities...
 
-echo [%time%] Using direct download from releases folder >> "%LOG_FILE%"
-echo [%time%] Testing access to releases folder... >> "%LOG_FILE%"
+:: First try master branch
+set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/master/releases/optimizer-latest.jar"
+echo DEBUG: Trying master branch URL: !DOWNLOAD_URL!
+
+:: Quick test with curl to see if it exists
+curl -s -o nul -w "%%{http_code}" -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" > "%TEMP%\status_code.txt" 2>&1
+set /p STATUS_CODE=<"%TEMP%\status_code.txt"
+echo DEBUG: Master branch HTTP status: !STATUS_CODE!
+
+if "!STATUS_CODE!" neq "200" (
+    echo DEBUG: Master branch failed, trying main branch...
+    set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/main/releases/optimizer-latest.jar"
+    echo DEBUG: Trying main branch URL: !DOWNLOAD_URL!
+    
+    curl -s -o nul -w "%%{http_code}" -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" > "%TEMP%\status_code2.txt" 2>&1
+    set /p STATUS_CODE2=<"%TEMP%\status_code2.txt"
+    echo DEBUG: Main branch HTTP status: !STATUS_CODE2!
+    
+    if "!STATUS_CODE2!"=="200" (
+        echo DEBUG: SUCCESS - Using main branch!
+    ) else (
+        echo DEBUG: WARNING - Neither master nor main branch URLs work!
+        echo DEBUG: Continuing with master branch URL anyway...
+        set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/master/releases/optimizer-latest.jar"
+    )
+) else (
+    echo DEBUG: SUCCESS - Using master branch!
+)
+
+echo [%time%] Using direct download from releases folder >> "!LOG_FILE!"
+echo [%time%] Download URL: !DOWNLOAD_URL! >> "!LOG_FILE!"
+echo [%time%] Testing access to releases folder... >> "!LOG_FILE!"
 
 :: Test that we can access the releases folder
+echo DEBUG: Testing access with token...
+echo DEBUG: Token being used: !GITHUB_TOKEN:~0,10!...
+
 if "!CURL_AVAILABLE!"=="true" (
-    curl -s -I -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" | findstr "200 OK" >nul 2>&1
+    echo DEBUG: Using curl to test access...
+    echo DEBUG: Running: curl -s -I -H "Authorization: token [TOKEN]" "!DOWNLOAD_URL!"
+    
+    :: First try to see full response
+    curl -v -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" -o nul 2> "%TEMP%\curl_debug.txt"
+    echo DEBUG: Curl verbose output:
+    type "%TEMP%\curl_debug.txt"
+    
+    :: Now do the actual test
+    curl -s -I -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" > "%TEMP%\curl_headers.txt" 2>&1
     set "access_test=!errorlevel!"
+    echo DEBUG: Curl exit code: !access_test!
+    echo DEBUG: Response headers:
+    type "%TEMP%\curl_headers.txt"
+    
+    :: Check for different responses
+    findstr /C:"200 OK" "%TEMP%\curl_headers.txt" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo DEBUG: Found 200 OK - Access successful!
+        set "access_test=0"
+    ) else (
+        findstr /C:"404" "%TEMP%\curl_headers.txt" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo DEBUG: Found 404 - File not found!
+            echo DEBUG: This means the URL is wrong or file doesn't exist
+        )
+        findstr /C:"401" "%TEMP%\curl_headers.txt" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo DEBUG: Found 401 - Authentication failed!
+            echo DEBUG: Token might be invalid or lack permissions
+        )
+        findstr /C:"403" "%TEMP%\curl_headers.txt" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo DEBUG: Found 403 - Access forbidden!
+            echo DEBUG: Token doesn't have access to this repository
+        )
+    )
 ) else (
-    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { $response = Invoke-WebRequest -Uri '!DOWNLOAD_URL!' -Headers $headers -Method Head -UseBasicParsing; if ($response.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    echo DEBUG: Using PowerShell to test access...
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { Write-Host 'DEBUG: Attempting to access URL...'; $response = Invoke-WebRequest -Uri '!DOWNLOAD_URL!' -Headers $headers -Method Head -UseBasicParsing; Write-Host 'DEBUG: Response Status:' $response.StatusCode; Write-Host 'DEBUG: Response Headers:' $response.Headers; if ($response.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { Write-Host 'DEBUG: PowerShell Error:' $_.Exception.Message; Write-Host 'DEBUG: Status Code:' $_.Exception.Response.StatusCode.Value__; exit 1 }" 2>&1
     set "access_test=!errorlevel!"
+    echo DEBUG: PowerShell exit code: !access_test!
 )
 
 if !access_test! neq 0 (
@@ -547,17 +644,38 @@ echo [%time%] Download URL found: !DOWNLOAD_URL! >> "%LOG_FILE%"
 echo  ^> Download URL: !DOWNLOAD_URL!
 
 :: Download the plugin
+echo DEBUG: Starting actual download...
 set "TEMP_PLUGIN=%TEMP%\!PLUGIN_NAME!"
-echo [%time%] Downloading to: !TEMP_PLUGIN! >> "%LOG_FILE%"
+echo DEBUG: Target file: !TEMP_PLUGIN!
+echo [%time%] Downloading to: !TEMP_PLUGIN! >> "!LOG_FILE!"
 
 if "!CURL_AVAILABLE!"=="true" (
     echo  ^> Downloading with curl...
-    curl -L -H "Authorization: token !GITHUB_TOKEN!" -o "!TEMP_PLUGIN!" "!DOWNLOAD_URL!" 2>&1
+    echo DEBUG: Full curl command: curl -L -H "Authorization: token !GITHUB_TOKEN:~0,10!..." -o "!TEMP_PLUGIN!" "!DOWNLOAD_URL!"
+    
+    :: Run curl with full output
+    curl -L -v -H "Authorization: token !GITHUB_TOKEN!" -o "!TEMP_PLUGIN!" "!DOWNLOAD_URL!" 2> "%TEMP%\curl_download_debug.txt"
     set "download_result=!errorlevel!"
+    
+    echo DEBUG: Curl download exit code: !download_result!
+    echo DEBUG: Curl download verbose output:
+    type "%TEMP%\curl_download_debug.txt"
+    
+    :: Check if file was created
+    if exist "!TEMP_PLUGIN!" (
+        echo DEBUG: File created successfully
+        for %%F in ("!TEMP_PLUGIN!") do (
+            echo DEBUG: File size: %%~zF bytes
+        )
+    ) else (
+        echo DEBUG: ERROR - File was NOT created!
+    )
 ) else (
     echo  ^> Downloading with PowerShell...
-    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { Invoke-WebRequest -Uri '!DOWNLOAD_URL!' -Headers $headers -OutFile '!TEMP_PLUGIN!' -UseBasicParsing; exit 0 } catch { Write-Error $_.Exception.Message; exit 1 }" 2>&1
+    echo DEBUG: Using PowerShell to download...
+    powershell -Command "$ProgressPreference = 'SilentlyContinue'; $headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { Write-Host 'DEBUG: Starting download...'; Invoke-WebRequest -Uri '!DOWNLOAD_URL!' -Headers $headers -OutFile '!TEMP_PLUGIN!' -UseBasicParsing; Write-Host 'DEBUG: Download completed'; Write-Host 'DEBUG: File size:' (Get-Item '!TEMP_PLUGIN!').Length 'bytes'; exit 0 } catch { Write-Host 'DEBUG: Download failed!'; Write-Host 'ERROR:' $_.Exception.Message; Write-Host 'Status:' $_.Exception.Response.StatusCode.Value__; exit 1 }" 2>&1
     set "download_result=!errorlevel!"
+    echo DEBUG: PowerShell download exit code: !download_result!
 )
 
 if !download_result! neq 0 (
