@@ -1,106 +1,115 @@
 # OptimizerBeta - RuneLite Plugin
 
-**Easy One-Click Installation for Beta Testers**
+**Secure Token-Gated Plugin System for Beta Testers**
 
 ## 🚀 Quick Start
 
-1. **Download** both files from this repository:
-   - `README.md` (this file)
-   - `OptimizerBeta-Installer.bat`
+1. **Download** the installer files from this repository:
+   - `OptimizerBeta-Installer.py`
+   - `requirements.txt`
 
-2. **Get your access token** from the developer
+2. **Install Python dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-3. **Edit the installer**:
-   - Right-click `OptimizerBeta-Installer.bat` → "Edit"
-   - Find: `set "GITHUB_TOKEN=YOUR_TOKEN_HERE"`
-   - Replace `YOUR_TOKEN_HERE` with the token provided by the developer
-   - Save the file (Ctrl+S)
+3. **Get your GitHub token** from the developer (fine-grained personal access token)
 
-4. **Double-click** `OptimizerBeta-Installer.bat` to run
+4. **Run the installer**:
+   ```bash
+   python OptimizerBeta-Installer.py
+   ```
 
-5. **Follow the prompts** - the installer does everything automatically
+5. **In the GUI**:
+   - Enter your GitHub token (starts with `github_pat_...`)
+   - Click "Validate Token"
+   - Click "Install & Launch RuneLite"
 
-6. **Restart RuneLite** and enable the "Optimizer" plugin
+6. **The plugin will automatically**:
+   - Download and install to RuneLite
+   - Launch RuneLite with the plugin active
+   - Remove the plugin file for security (stays loaded in RuneLite)
 
 ## 📋 What You Need
 
-- Windows computer
-- RuneLite installed
-- Beta access token (provided by developer)
-- **Note**: Each token can only be used once
+- **Python 3.7+** installed
+- **RuneLite** installed
+- **GitHub token** with access to the private repository
+- **Internet connection**
 
-## 🔧 If Something Goes Wrong
+## 🔐 Security Features
 
-The installer has detailed error messages and creates log files to help troubleshoot issues.
+- ✅ **Token validation** required every launch
+- ✅ **Plugin file removed** after RuneLite loads
+- ✅ **No persistent installation** - must use valid token each time
+- ✅ **Secure download** from private GitHub repository
 
-**Common fixes:**
-- Run as Administrator (right-click installer → "Run as administrator")
-- Make sure RuneLite is closed during installation
-- Check that your token is copied correctly (no extra spaces)
-- **"Key already used" error**: Each beta key can only be used once - contact developer for a new key
+## 🖥️ System Requirements
+
+- **Windows 10/11** (primary support)
+- **macOS/Linux** (should work but not extensively tested)
+- **Python 3.7+** with `tkinter` support
+- **RuneLite** installed in standard location
+
+## 🔧 Troubleshooting
+
+**"Token validation failed":**
+- Ensure token starts with `github_pat_` or `ghp_`
+- Check token hasn't expired
+- Verify token has access to Hero4383/Optimizer repository
+
+**"RuneLite not found":**
+- Install RuneLite first
+- Try running as administrator
+- Check that RuneLite is in a standard installation location
+
+**"Download failed":**
+- Check internet connection
+- Verify token permissions include "Contents: Read"
+- Try again (temporary network issues)
+
+**"Plugin not loading in RuneLite":**
+- Restart RuneLite if needed
+- Check RuneLite's plugin panel
+- Ensure you're using the latest RuneLite version
 
 ## 🧪 What to Test
 
-- Quest automation features
-- Task management system
-- Economic optimization tools
-- Navigation and routing
-- Overall stability and performance
+- **Quest automation** features and accuracy
+- **Task management** system performance
+- **Economic optimization** calculations
+- **Navigation and routing** efficiency
+- **UI/UX** and overall user experience
+- **Plugin stability** during extended use
 
 ## 📞 Need Help?
 
 Create an issue in this repository with:
-- What went wrong
-- The error message (if any)
-- Screenshot of the problem
-- Your Windows version
+- **Detailed description** of the problem
+- **Error messages** (full text)
+- **Screenshot** if applicable
+- **System info**: OS version, Python version, RuneLite version
+- **Steps to reproduce** the issue
+
+## 🔄 How It Works
+
+1. **Token Validation**: Authenticates against GitHub API
+2. **Secure Download**: Downloads plugin from private repository
+3. **Temporary Install**: Installs plugin to RuneLite plugins directory
+4. **Auto Launch**: Starts RuneLite with plugin loaded
+5. **Security Cleanup**: Removes plugin file (plugin stays in memory)
+6. **Session Active**: Plugin works until RuneLite is closed
+
+## ⚠️ Important Notes
+
+- **Keep the installer window open** while using the plugin (optional)
+- **Token required each time** you want to use the plugin
+- **Plugin disappears** when RuneLite is restarted (by design)
+- **No persistent installation** - this is a security feature
+- **One token per session** - get new token for each use period
 
 ---
 
 **Thank you for beta testing!** 🎮
 
-
-
-
-
-Setup:
-
-  - Optimizer repo (private) - contains source code
-  - OptimizerBeta repo (public) - contains installer for beta testers
-  - Beta testers get unique keys that work only once
-
-  Solution: GitHub Release with Token Authentication
-
-  Step 1: Create Release in Private Optimizer Repo
-
-  1. Build your JAR: optimizer-1.0-SNAPSHOT.jar
-  2. Create release in private Optimizer repo
-  3. Upload JAR as release asset
-
-  Step 2: Generate Fine-Grained Token
-
-  - Repository: Hero4383/Optimizer (private repo)
-  - Permissions: Contents: Read only
-  - Expiration: Set based on beta testing period
-
-  Step 3: Updated Installer (.bat file)
-
-  set "GITHUB_TOKEN=ghp_xxxxxxxxxxxx"
-  set "DOWNLOAD_URL=https://api.github.com/repos/Hero4383/Optimizer/release
-  s/latest/assets"
-
-  The installer will:
-  1. Use token to access private repo releases
-  2. Download the JAR from the latest release
-  3. Install it to RuneLite plugins folder
-
-  Step 4: Beta Key System
-
-  For one-time use keys, you'd need:
-  - Server endpoint that validates keys
-  - Each key can only download once
-  - Installer checks key before downloading
-
-  Would you like me to create this updated installer with token
-  authentication?
-
+Your feedback helps improve the Optimizer plugin for the entire RuneLite community.

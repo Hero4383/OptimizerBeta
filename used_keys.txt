@@ -1,8 +1,0 @@
-# Used Beta Keys
-# Format: key_id timestamp
-# This file tracks which beta keys have been used to prevent reuse
-
-
-
-
-
