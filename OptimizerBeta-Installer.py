@@ -34,6 +34,8 @@ class OptimizerBetaInstaller:
         self.plugins_dir = None
         self.temp_plugin_path = None
         self.runelite_process = None
+        self.custom_launcher = None
+        self.launcher_java_file = None
         
         self.setup_ui()
         self.detect_runelite()
@@ -230,15 +232,23 @@ class OptimizerBetaInstaller:
                 
             self.log(f"✓ Plugin installed to: {plugin_path}")
             
-            # Step 3: Launch RuneLite
-            self.log("Launching RuneLite...")
+            # Step 3: Setup RuneLite development environment
+            self.log("Setting up RuneLite development environment...")
+            self._setup_runelite_environment()
+            
+            # Step 4: Compile custom launcher
+            self.log("Compiling custom launcher...")
+            self._compile_launcher()
+            
+            # Step 5: Launch RuneLite
+            self.log("Launching RuneLite in developer mode...")
             self._launch_runelite()
             
-            # Step 4: Wait for RuneLite to start and load plugins
+            # Step 6: Wait for RuneLite to start and load plugins
             self.log("Finalizing installation...")
             time.sleep(35)  # Give RuneLite time to load the plugin
             
-            # Step 5: Remove plugin file (security measure)
+            # Step 7: Remove plugin file (security measure)
             if plugin_path.exists():
                 plugin_path.unlink()
             
@@ -258,21 +268,41 @@ class OptimizerBetaInstaller:
             self.root.after(0, lambda: self._installation_failed(error_msg))
             
     def _launch_runelite(self):
-        """Launch RuneLite application with developer mode arguments"""
-        # VM arguments needed for developer mode (must come before -jar)
+        """Launch RuneLite application with developer mode settings"""
+        # Configure RuneLite launcher settings for external plugins and insecure credentials
+        self._configure_runelite_launcher()
+        
+        # VM arguments (must come before -jar) - matching gradle runRuneLite task
         vm_args = [
-            "-ea"  # Enable assertions (required for developer mode)
+            "-ea",                                     # Enable assertions (required for dev tools)
+            "-Xmx768m", 
+            "-Xss2m",
+            "-XX:CompileThreshold=1500",
+            "-Dsun.java2d.opengl=false",              # Disable hardware acceleration
+            "-Drunelite.pluginhub.url=https://repo.runelite.net/plugins",
+            "--add-opens=java.desktop/sun.awt=ALL-UNNAMED",
+            "--add-opens=java.desktop/sun.swing=ALL-UNNAMED"
         ]
         
-        # Program arguments for external plugin loading
+        # Program arguments for RuneLite launcher
         program_args = [
-            "--developer-mode",
-            "--debug",
-            "--external-plugins",
-            "--insecure-write-credentials"
+            "--debug"                                 # Enable debug logging
         ]
         
-        # Try to find RuneLite executable
+        # Try custom launcher first, then fallback to standard RuneLite
+        if self.custom_launcher and self.custom_launcher.exists():
+            try:
+                if os.name == 'nt':
+                    self.runelite_process = subprocess.Popen([str(self.custom_launcher)],
+                                                           creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+                else:
+                    self.runelite_process = subprocess.Popen(['bash', str(self.custom_launcher)])
+                self.log(f"✓ RuneLite launched via custom developer mode launcher")
+                return
+            except Exception as e:
+                self.log(f"Failed to launch custom launcher: {e}")
+        
+        # Fallback: Try to find standard RuneLite executable
         possible_exes = [
             "RuneLite.exe",
             "RuneLite.jar",
@@ -287,7 +317,7 @@ class OptimizerBetaInstaller:
                     cmd = [exe_path] + program_args
                     self.runelite_process = subprocess.Popen(cmd, 
                                                            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
-                    self.log(f"✓ RuneLite launched in developer mode via: {exe_path}")
+                    self.log(f"✓ RuneLite launched via: {exe_path}")
                     self.log(f"✓ Arguments: {' '.join(program_args)}")
                     return
                 except FileNotFoundError:
@@ -305,7 +335,7 @@ class OptimizerBetaInstaller:
                             
                         self.runelite_process = subprocess.Popen(cmd,
                                                                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
-                        self.log(f"✓ RuneLite launched in developer mode via: {exe_path}")
+                        self.log(f"✓ RuneLite launched via: {exe_path}")
                         if exe_path.suffix == '.jar':
                             self.log(f"✓ VM Args: {' '.join(vm_args)}")
                         self.log(f"✓ Program Args: {' '.join(program_args)}")
@@ -316,15 +346,178 @@ class OptimizerBetaInstaller:
         
         # If all else fails, show instructions
         self.log("⚠ Could not launch RuneLite automatically.")
-        self.log("Please launch RuneLite manually with these arguments:")
-        self.log("For JAR: java -ea -jar RuneLite.jar --developer-mode --debug --external-plugins --insecure-write-credentials")
-        self.log("For EXE: RuneLite.exe --developer-mode --debug --external-plugins --insecure-write-credentials")
+        self.log("Please run the custom launcher manually:")
+        if os.name == 'nt':
+            self.log("1. Navigate to your user folder/.runelite/")
+            self.log("2. Double-click 'runelite_dev.cmd'")
+        else:
+            self.log("1. Open terminal and run:")
+            self.log("   bash ~/.runelite/runelite_dev.sh")
+        self.log("This will launch RuneLite with your plugin in developer mode.")
         
         # Try opening RuneLite directory
         runelite_dir = Path.home() / ".runelite"
         if runelite_dir.exists():
             os.startfile(runelite_dir) if os.name == 'nt' else subprocess.call(['open', runelite_dir])
             self.log("✓ Opened RuneLite directory for manual launch")
+            
+    def _configure_runelite_launcher(self):
+        """Create a custom launcher class and script for developer mode"""
+        try:
+            # Create RuneLite configuration directory
+            runelite_dir = Path.home() / ".runelite"
+            runelite_dir.mkdir(exist_ok=True)
+            
+            # Create launcher subdirectory
+            launcher_dir = runelite_dir / "launcher"
+            launcher_dir.mkdir(exist_ok=True)
+            
+            # Step 1: Create custom launcher Java class
+            launcher_java_content = '''import net.runelite.client.RuneLite;
+import net.runelite.client.externalplugins.ExternalPluginManager;
+import net.runelite.client.plugins.Plugin;
+
+public class OptimizerLauncher {
+    public static void main(String[] args) throws Exception {
+        // Load our Optimizer plugin using the same method as gradle
+        try {
+            @SuppressWarnings("unchecked")
+            Class<? extends Plugin> optimizerClass = (Class<? extends Plugin>) Class.forName("com.optimizer.OptimizerPlugin");
+            ExternalPluginManager.loadBuiltin(optimizerClass);
+            System.out.println("Optimizer plugin loaded successfully");
+        } catch (Exception e) {
+            System.err.println("Failed to load Optimizer: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // Launch RuneLite with developer mode arguments
+        String[] devArgs = {"--developer-mode", "--debug", "--insecure-write-credentials"};
+        RuneLite.main(devArgs);
+    }
+}'''
+            
+            launcher_java_file = launcher_dir / "OptimizerLauncher.java"
+            with open(launcher_java_file, 'w') as f:
+                f.write(launcher_java_content)
+            
+            self.log("✓ Created custom launcher Java class")
+            
+            # Step 2: Create launcher script
+            launcher_script = runelite_dir / ("runelite_dev.cmd" if os.name == 'nt' else "runelite_dev.sh")
+            
+            if os.name == 'nt':
+                # Windows batch script
+                script_content = '''@echo off
+java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^
+     -Dsun.java2d.opengl=false ^
+     -Drunelite.pluginhub.url=https://repo.runelite.net/plugins ^
+     --add-opens=java.desktop/sun.awt=ALL-UNNAMED ^
+     --add-opens=java.desktop/sun.swing=ALL-UNNAMED ^
+     -cp "%~dp0repository2\\*;%~dp0plugins\\optimizer-1.0-SNAPSHOT.jar;%~dp0launcher" ^
+     OptimizerLauncher
+'''
+            else:
+                # Linux/Mac shell script
+                script_content = '''#!/bin/bash
+java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
+     -Dsun.java2d.opengl=false \\
+     -Drunelite.pluginhub.url=https://repo.runelite.net/plugins \\
+     --add-opens=java.desktop/sun.awt=ALL-UNNAMED \\
+     --add-opens=java.desktop/sun.swing=ALL-UNNAMED \\
+     -cp "$(dirname "$0")/repository2/*:$(dirname "$0")/plugins/optimizer-1.0-SNAPSHOT.jar:$(dirname "$0")/launcher" \\
+     OptimizerLauncher
+'''
+            
+            with open(launcher_script, 'w') as f:
+                f.write(script_content)
+                
+            # Make executable on Unix systems
+            if os.name != 'nt':
+                launcher_script.chmod(0o755)
+                
+            self.custom_launcher = launcher_script
+            self.launcher_java_file = launcher_java_file
+            self.log("✓ Created custom developer mode launcher script")
+            self.log("✓ Configured: explicit plugin loading, developer-mode, debug, insecure-write-credentials")
+            
+        except Exception as e:
+            self.log(f"⚠ Could not create custom launcher: {e}")
+            self.custom_launcher = None
+            self.launcher_java_file = None
+            
+    def _setup_runelite_environment(self):
+        """Download and setup RuneLite repository dependencies"""
+        try:
+            runelite_dir = Path.home() / ".runelite"
+            repo_dir = runelite_dir / "repository2"
+            repo_dir.mkdir(exist_ok=True)
+            
+            # Essential RuneLite JARs needed for development
+            required_jars = [
+                "https://repo1.maven.org/maven2/net/runelite/client/1.11.12.2/client-1.11.12.2.jar",
+                "https://repo1.maven.org/maven2/net/runelite/runelite-api/1.11.12.2/runelite-api-1.11.12.2.jar",
+                "https://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.2.9/logback-classic-1.2.9.jar",
+                "https://repo1.maven.org/maven2/ch/qos/logback/logback-core/1.2.9/logback-core-1.2.9.jar",
+                "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar",
+                "https://repo1.maven.org/maven2/com/google/inject/guice/4.1.0/guice-4.1.0-no_aop.jar",
+                "https://repo1.maven.org/maven2/com/google/guava/guava/23.2-jre/guava-23.2-jre.jar"
+            ]
+            
+            for jar_url in required_jars:
+                jar_name = jar_url.split("/")[-1]
+                jar_path = repo_dir / jar_name
+                
+                if not jar_path.exists():
+                    self.log(f"Downloading {jar_name}...")
+                    response = requests.get(jar_url, timeout=30)
+                    response.raise_for_status()
+                    
+                    with open(jar_path, 'wb') as f:
+                        f.write(response.content)
+                else:
+                    self.log(f"✓ {jar_name} already exists")
+            
+            self.log("✓ RuneLite development environment ready")
+            
+        except Exception as e:
+            self.log(f"⚠ Failed to setup RuneLite environment: {e}")
+            raise
+            
+    def _compile_launcher(self):
+        """Compile the custom launcher Java class"""
+        try:
+            if not self.launcher_java_file or not self.launcher_java_file.exists():
+                raise Exception("Launcher Java file not found")
+            
+            runelite_dir = Path.home() / ".runelite"
+            repo_dir = runelite_dir / "repository2"
+            
+            # Build classpath for compilation
+            classpath_parts = []
+            for jar_file in repo_dir.glob("*.jar"):
+                classpath_parts.append(str(jar_file))
+            classpath_parts.append(str(self.plugins_dir / self.plugin_filename))
+            
+            classpath = os.pathsep.join(classpath_parts)
+            
+            # Compile the launcher
+            compile_cmd = [
+                "javac",
+                "-cp", classpath,
+                str(self.launcher_java_file)
+            ]
+            
+            result = subprocess.run(compile_cmd, capture_output=True, text=True, cwd=self.launcher_java_file.parent)
+            
+            if result.returncode == 0:
+                self.log("✓ Custom launcher compiled successfully")
+            else:
+                self.log(f"✗ Compilation failed: {result.stderr}")
+                raise Exception(f"Launcher compilation failed: {result.stderr}")
+                
+        except Exception as e:
+            self.log(f"⚠ Failed to compile launcher: {e}")
+            raise
             
     def _installation_complete(self):
         """Handle successful installation"""
@@ -343,7 +536,18 @@ class OptimizerBetaInstaller:
         if self.temp_plugin_path and self.temp_plugin_path.exists():
             try:
                 self.temp_plugin_path.unlink()
-                self.log("Cleaned up partial installation")
+                self.log("Cleaned up partial plugin installation")
+            except:
+                pass
+        
+        # Clean up launcher files
+        if self.launcher_java_file and self.launcher_java_file.exists():
+            try:
+                self.launcher_java_file.unlink()
+                class_file = self.launcher_java_file.with_suffix('.class')
+                if class_file.exists():
+                    class_file.unlink()
+                self.log("Cleaned up partial launcher installation")
             except:
                 pass
                 
@@ -361,6 +565,18 @@ class OptimizerBetaInstaller:
             try:
                 self.temp_plugin_path.unlink()
                 self.log("Cleaned up plugin file on exit")
+            except:
+                pass
+        
+        # Clean up launcher files
+        if self.launcher_java_file and self.launcher_java_file.exists():
+            try:
+                # Remove .java and .class files
+                self.launcher_java_file.unlink()
+                class_file = self.launcher_java_file.with_suffix('.class')
+                if class_file.exists():
+                    class_file.unlink()
+                self.log("Cleaned up launcher files on exit")
             except:
                 pass
                 
