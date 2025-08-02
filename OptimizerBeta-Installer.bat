@@ -474,50 +474,30 @@ echo.
 echo [5/6] Downloading latest plugin...
 echo [%time%] Starting plugin download... >> "%LOG_FILE%"
 
-:: Construct download URL for latest release
-set "API_URL=https://api.github.com/repos/!REPO_OWNER!/!REPO_NAME!/releases/latest"
-set "TEMP_JSON=%TEMP%\optimizer_release.json"
-set "DOWNLOAD_URL="
+:: Use direct download from releases folder (simpler and more reliable)
+set "DOWNLOAD_URL=https://raw.githubusercontent.com/!REPO_OWNER!/!REPO_NAME!/master/releases/optimizer-latest.jar"
 
-echo [%time%] Fetching release information from: !API_URL! >> "%LOG_FILE%"
+echo [%time%] Using direct download from releases folder >> "%LOG_FILE%"
+echo [%time%] Testing access to releases folder... >> "%LOG_FILE%"
 
-:: Get latest release info
+:: Test that we can access the releases folder
 if "!CURL_AVAILABLE!"=="true" (
-    curl -s -H "Authorization: token !GITHUB_TOKEN!" -H "Accept: application/vnd.github.v3+json" "!API_URL!" > "!TEMP_JSON!" 2>&1
-    set "api_result=!errorlevel!"
+    curl -s -I -H "Authorization: token !GITHUB_TOKEN!" "!DOWNLOAD_URL!" | findstr "200 OK" >nul 2>&1
+    set "access_test=!errorlevel!"
 ) else (
-    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'; 'Accept' = 'application/vnd.github.v3+json'}; try { Invoke-WebRequest -Uri '!API_URL!' -Headers $headers -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath '!TEMP_JSON!' -Encoding UTF8; exit 0 } catch { exit 1 }" 2>&1
-    set "api_result=!errorlevel!"
+    powershell -Command "$headers = @{'Authorization' = 'token !GITHUB_TOKEN!'}; try { $response = Invoke-WebRequest -Uri '!DOWNLOAD_URL!' -Headers $headers -Method Head -UseBasicParsing; if ($response.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    set "access_test=!errorlevel!"
 )
 
-if !api_result! neq 0 (
-    echo [%time%] ERROR: Failed to fetch release information >> "%LOG_FILE%"
-    echo  ERROR: Cannot fetch latest release information from GitHub.
+if !access_test! neq 0 (
+    echo [%time%] ERROR: Cannot access plugin download URL >> "%LOG_FILE%"
+    echo  ERROR: Cannot access the plugin file from GitHub.
     echo  This could be due to:
     echo  - Network connectivity issues
     echo  - Invalid or expired token
     echo  - Repository access restrictions
+    echo  - Plugin file not available in releases folder
     echo.
-    goto :error_exit
-)
-
-:: Extract download URL from JSON (simplified approach for batch)
-:: Look for the JAR file download URL
-for /f "delims=" %%a in ('findstr /C:"browser_download_url.*\.jar" "!TEMP_JSON!"') do (
-    set "json_line=%%a"
-    :: Extract URL between quotes
-    for /f "tokens=2 delims=:" %%b in ("!json_line!") do (
-        set "url_part=%%b"
-        set "url_part=!url_part: =!"
-        set "url_part=!url_part:~1,-1!"
-        set "DOWNLOAD_URL=!url_part!"
-    )
-)
-
-if "!DOWNLOAD_URL!"=="" (
-    echo [%time%] ERROR: Could not find JAR download URL >> "%LOG_FILE%"
-    echo  ERROR: Cannot find plugin download URL in the latest release.
-    echo  The repository might not have a proper release with a JAR file.
     goto :error_exit
 )
 
@@ -606,7 +586,6 @@ echo  ^> Plugin installed successfully!
 
 :: Clean up temporary files
 del "!TEMP_PLUGIN!" >nul 2>&1
-del "!TEMP_JSON!" >nul 2>&1
 
 :: ================================================================================================
 :: INSTALLATION COMPLETE
