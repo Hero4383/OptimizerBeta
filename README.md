@@ -26,7 +26,8 @@
 
 - Windows computer
 - RuneLite installed
-- Access token (provided by developer)
+- Beta access token (provided by developer)
+- **Note**: Each token can only be used once
 
 ## 🔧 If Something Goes Wrong
 
@@ -36,6 +37,7 @@ The installer has detailed error messages and creates log files to help troubles
 - Run as Administrator (right-click installer → "Run as administrator")
 - Make sure RuneLite is closed during installation
 - Check that your token is copied correctly (no extra spaces)
+- **"Key already used" error**: Each beta key can only be used once - contact developer for a new key
 
 ## 🧪 What to Test
 
