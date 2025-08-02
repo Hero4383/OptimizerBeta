@@ -4,7 +4,7 @@ echo DEBUG: Enabling delayed expansion...
 setlocal EnableDelayedExpansion
 if !errorlevel! neq 0 (
     echo ERROR: Failed to enable delayed expansion
-    exit /b 1
+    echo WARNING: Continuing anyway...
 )
 echo DEBUG: Setting window title...
 title OptimizerBeta Plugin Installer
@@ -787,55 +787,6 @@ echo  Debug completed! Window will close in 5 seconds...
 timeout /t 5 >nul
 goto :end
 
-:: ================================================================================================
-:: ERROR HANDLING
-:: ================================================================================================
-
-:error_exit
-echo.
-echo  ================================================================================================
-echo   Installation Failed
-echo  ================================================================================================
-echo.
-echo  The installation encountered an error and could not complete.
-echo.
-echo  Debug Information:
-echo  - Log file: !LOG_FILE!
-echo  - Error log: !ERROR_LOG!
-echo  - Windows version: !WINDOWS_VERSION!
-echo  - Administrator: !IS_ADMIN!
-echo  - Internet: !INTERNET_OK!
-echo  - Token configured: !GITHUB_TOKEN! neq YOUR_TOKEN_HERE
-echo.
-echo  For support:
-echo  1. Check the log files above
-echo  2. Try running as Administrator
-echo  3. Verify your internet connection
-echo  4. Confirm the token is correct
-echo  5. Report the issue with log files
-echo.
-
-echo [%time%] Installation failed >> "%LOG_FILE%"
-echo [%time%] Error details written to: !ERROR_LOG! >> "%LOG_FILE%"
-
-:: Copy recent errors to error log
-echo ================================================================================================ > "%ERROR_LOG%"
-echo OptimizerBeta Plugin Installer - Error Log >> "%ERROR_LOG%"
-echo Installation failed at %date% %time% >> "%ERROR_LOG%"
-echo ================================================================================================ >> "%ERROR_LOG%"
-echo. >> "%ERROR_LOG%"
-echo System Information: >> "%ERROR_LOG%"
-echo - Windows Version: !WINDOWS_VERSION! >> "%ERROR_LOG%"
-echo - Administrator: !IS_ADMIN! >> "%ERROR_LOG%"
-echo - Internet: !INTERNET_OK! >> "%ERROR_LOG%"
-echo - Curl Available: !CURL_AVAILABLE! >> "%ERROR_LOG%"
-echo - PowerShell Available: !POWERSHELL_AVAILABLE! >> "%ERROR_LOG%"
-echo - Token Configured: !GITHUB_TOKEN! neq YOUR_TOKEN_HERE >> "%ERROR_LOG%"
-echo. >> "%ERROR_LOG%"
-
-echo  Debug completed! Window will close in 5 seconds...
-timeout /t 5 >nul
-exit /b 1
 
 :: ================================================================================================
 :: CLEANUP AND EXIT
@@ -843,5 +794,11 @@ exit /b 1
 
 :end
 echo [%time%] Installer finished >> "%LOG_FILE%"
+echo.
+echo ================================================================================================
+echo INSTALLER COMPLETE - Check output above for any errors
+echo ================================================================================================
+echo.
+echo Closing in 10 seconds...
+timeout /t 10
 endlocal
-exit /b 0
