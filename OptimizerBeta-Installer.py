@@ -254,14 +254,18 @@ SABJAAAACAABAEoAAQBQAFIAAAAKAAEAUwBVAFcAGQ=="""
                 
             self.log(f"✓ Plugin downloaded ({len(response.content):,} bytes)")
             
-            # Step 2: Install plugin
-            plugin_path = self.plugins_dir / self.plugin_filename
+            # Step 2: Install plugin to launcher directory (where batch script expects it)
+            runelite_dir = Path.home() / ".runelite"
+            launcher_plugins_dir = runelite_dir / "plugins"
+            launcher_plugins_dir.mkdir(exist_ok=True)
+            
+            plugin_path = launcher_plugins_dir / self.plugin_filename
             self.temp_plugin_path = plugin_path
             
             with open(plugin_path, 'wb') as f:
                 f.write(response.content)
                 
-            self.log(f"✓ Plugin installed to: {plugin_path}")
+            self.log(f"✓ Plugin installed to launcher classpath: {plugin_path}")
             
             # Step 3: Setup RuneLite development environment
             self.log("Setting up RuneLite development environment...")
@@ -276,16 +280,14 @@ SABJAAAACAABAEoAAQBQAFIAAAAKAAEAUwBVAFcAGQ=="""
             self._launch_runelite()
             
             # Step 6: Wait for RuneLite to start and load plugins
-            self.log("Finalizing installation...")
-            time.sleep(35)  # Give RuneLite time to load the plugin
-            
-            # Step 7: Remove plugin file (security measure)
-            if plugin_path.exists():
-                plugin_path.unlink()
+            self.log("Waiting for RuneLite to start and load plugin...")
+            time.sleep(10)  # Give RuneLite time to start and load the plugin
             
             self.log("=" * 50)
-            self.log("SUCCESS! Plugin is now running in RuneLite")
+            self.log("SUCCESS! Plugin installation complete")
+            self.log("RuneLite has been launched in developer mode with the Optimizer plugin")
             self.log("The plugin will remain active until you close RuneLite")
+            self.log("Plugin file will be cleaned up when you close this installer")
             
             self.root.after(0, self._installation_complete)
             
@@ -416,8 +418,16 @@ SABJAAAACAABAEoAAQBQAFIAAAAKAAEAUwBVAFcAGQ=="""
             launcher_script = runelite_dir / ("runelite_dev.cmd" if os.name == 'nt' else "runelite_dev.sh")
             
             if os.name == 'nt':
-                # Windows batch script
+                # Windows batch script with error handling and absolute paths
                 script_content = '''@echo off
+echo Starting RuneLite with Optimizer plugin in developer mode...
+echo.
+echo Classpath locations:
+echo - Repository: %~dp0repository2\\*
+echo - Plugin: %~dp0plugins\\optimizer-1.0-SNAPSHOT.jar
+echo - Launcher: %~dp0launcher
+echo.
+
 java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^
      -Dsun.java2d.opengl=false ^
      -Drunelite.pluginhub.url=https://repo.runelite.net/plugins ^
@@ -425,6 +435,26 @@ java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^
      --add-opens=java.desktop/sun.swing=ALL-UNNAMED ^
      -cp "%~dp0repository2\\*;%~dp0plugins\\optimizer-1.0-SNAPSHOT.jar;%~dp0launcher" ^
      OptimizerLauncher
+
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo ERROR: Failed to launch RuneLite ^(Error code: %ERRORLEVEL%^)
+    echo.
+    echo Possible causes:
+    echo - Java is not installed or not in PATH
+    echo - Required JAR files are missing: 
+    echo   * %~dp0repository2\\*.jar
+    echo   * %~dp0plugins\\optimizer-1.0-SNAPSHOT.jar  
+    echo   * %~dp0launcher\\OptimizerLauncher.class
+    echo - Plugin file was removed too early
+    echo.
+    echo Current directory: %~dp0
+    echo.
+    echo Press any key to close this window...
+    pause >nul
+) else (
+    echo RuneLite launched successfully!
+)
 '''
             else:
                 # Linux/Mac shell script
