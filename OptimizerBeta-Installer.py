@@ -1,771 +1,536 @@
 #!/usr/bin/env python3
 """
 OptimizerBeta Plugin Installer
-Secure token-gated plugin system for RuneLite
+Token-gated RuneLite plugin distribution system with developer mode integration
 """
 
+import os
+import sys
+import json
+import requests
+import subprocess
+import threading
+import datetime
+from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
-import requests
-import os
-import shutil
-import subprocess
-import time
-import threading
-from pathlib import Path
-import tempfile
-import base64
 
 class OptimizerBetaInstaller:
-    # Pre-compiled OptimizerLauncher.class (base64 encoded) - Java 11 compatible
-    LAUNCHER_CLASS_DATA = """yv66vgAAADcAWAoAAgADBwAEDAAFAAYBABBqYXZhL2xhbmcvT2JqZWN0AQAGPGluaXQ+AQADKClW
-CAAIAQAdY29tLm9wdGltaXplci5PcHRpbWl6ZXJQbHVnaW4KAAoACwcADAwADQAOAQAPamF2YS9s
-YW5nL0NsYXNzAQAHZm9yTmFtZQEAJShMamF2YS9sYW5nL1N0cmluZzspTGphdmEvbGFuZy9DbGFz
-czsKABAAEQcAEgwAEwAUAQA5bmV0L3J1bmVsaXRlL2NsaWVudC9leHRlcm5hbHBsdWdpbnMvRXh0
-ZXJuYWxQbHVnaW5NYW5hZ2VyAQALbG9hZEJ1aWx0aW4BABUoW0xqYXZhL2xhbmcvQ2xhc3M7KVYJ
-ABYAFwcAGAwAGQAaAQAQamF2YS9sYW5nL1N5c3RlbQEAA291dAEAFUxqYXZhL2lvL1ByaW50U3Ry
-ZWFtOwgAHAEAJE9wdGltaXplciBwbHVnaW4gbG9hZGVkIHN1Y2Nlc3NmdWxseQoAHgAfBwAgDAAh
-ACIBABNqYXZhL2lvL1ByaW50U3RyZWFtAQAHcHJpbnRsbgEAFShMamF2YS9sYW5nL1N0cmluZzsp
-VgcAJAEAE2phdmEvbGFuZy9FeGNlcHRpb24JABYAJgwAJwAaAQADZXJyCgAjACkMACoAKwEACmdl
-dE1lc3NhZ2UBABQoKUxqYXZhL2xhbmcvU3RyaW5nOxIAAAAtDAAuAC8BABdtYWtlQ29uY2F0V2l0
-aENvbnN0YW50cwEAJihMamF2YS9sYW5nL1N0cmluZzspTGphdmEvbGFuZy9TdHJpbmc7CgAjADEM
-ADIABgEAD3ByaW50U3RhY2tUcmFjZQcANAEAEGphdmEvbGFuZy9TdHJpbmcIADYBABAtLWRldmVs
-b3Blci1tb2RlCAA4AQAHLS1kZWJ1ZwgAOgEAHC0taW5zZWN1cmUtd3JpdGUtY3JlZGVudGlhbHMK
-ADwAPQcAPgwAPwBAAQAcbmV0L3J1bmVsaXRlL2NsaWVudC9SdW5lTGl0ZQEABG1haW4BABYoW0xq
-YXZhL2xhbmcvU3RyaW5nOylWBwBCAQART3B0aW1pemVyTGF1bmNoZXIBAARDb2RlAQAPTGluZU51
-bWJlclRhYmxlAQANU3RhY2tNYXBUYWJsZQEACkV4Y2VwdGlvbnMBAApTb3VyY2VGaWxlAQAWT3B0
-aW1pemVyTGF1bmNoZXIuamF2YQEAEEJvb3RzdHJhcE1ldGhvZHMPBgBLCgBMAE0HAE4MAC4ATwEA
-JGphdmEvbGFuZy9pbnZva2UvU3RyaW5nQ29uY2F0RmFjdG9yeQEAmChMamF2YS9sYW5nL2ludm9r
-ZS9NZXRob2RIYW5kbGVzJExvb2t1cDtMamF2YS9sYW5nL1N0cmluZztMamF2YS9sYW5nL2ludm9r
-ZS9NZXRob2RUeXBlO0xqYXZhL2xhbmcvU3RyaW5nO1tMamF2YS9sYW5nL09iamVjdDspTGphdmEv
-bGFuZy9pbnZva2UvQ2FsbFNpdGU7CABRAQAbRmFpbGVkIHRvIGxvYWQgT3B0aW1pemVyOiABAQAM
-SW5uZXJDbGFzc2VzBwBUAQAlemF2YS9sYW5nL2ludm9rZS9NZXRob2RIYW5kbGVzJExvb2t1cAcA
-VgEAHmphdmEvbGFuZy9pbnZva2UvTWV0aG9kSGFuZGxlcwEABkxvb2t1cAAhAEEAAgAAAAAAAgAB
-AAUABgABAEMAAAAdAAEAAQAAAAUqtwABsQAAAAEARAAAAAYAAQAAAAUACQA/AEAAAgBDAAAAmgAE
-AAIAAABJEge4AAlMBL0AClkDK1O4AA+yABUSG7YAHacAF0yyACUrtgAougAsAAC2AB0rtgAwBr0A
-M1kDEjVTWQQSN1NZBRI5U0wruAA7sQABAAAAGQAcACMAAgBEAAAAKgAKAAAACgAGAAsAEQAMABkA
-EAAcAA0AHQAOACwADwAwABMARAAUAEgAFQBFAAAABwACXAcAIxMARgAAAAQAAQAjAAMARwAAAAIA
-SABJAAAACAABAEoAAQBQAFIAAAAKAAEAUwBVAFcAGQ=="""
-    
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("OptimizerBeta Plugin Installer")
         self.root.geometry("600x500")
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
+        
+        # Set window icon if optimizer.png exists
+        try:
+            icon_path = Path(__file__).parent / "optimizer.png"
+            if icon_path.exists():
+                from PIL import Image, ImageTk
+                icon_image = Image.open(icon_path)
+                icon_photo = ImageTk.PhotoImage(icon_image.resize((32, 32)))
+                self.root.iconphoto(False, icon_photo)
+        except Exception:
+            # If PIL not available or icon not found, continue without icon
+            pass
         
         # Configuration
-        self.repo_owner = "Hero4383"
-        self.repo_name = "Optimizer"
-        self.plugin_filename = "optimizer-1.0-SNAPSHOT.jar"
-        self.download_url = f"https://raw.githubusercontent.com/{self.repo_owner}/{self.repo_name}/master/releases/optimizer-latest.jar"
+        self.github_repo_owner = "Hero4383"
+        self.github_repo_name = "Optimizer"
+        self.plugin_download_url = "https://raw.githubusercontent.com/Hero4383/Optimizer/master/releases/optimizer-latest.jar"
         
-        # State
-        self.token = ""
-        self.runelite_path = None
+        # State variables
+        self.token = None
+        self.runelite_dir = None
         self.plugins_dir = None
-        self.temp_plugin_path = None
+        self.sideloaded_plugins_dir = None
+        self.repository_dir = None
         self.runelite_process = None
-        self.custom_launcher = None
-        self.launcher_class_file = None
         
-        self.setup_ui()
+        # Setup GUI
+        self.setup_gui()
+        
+        # Auto-detect RuneLite installation
         self.detect_runelite()
         
-    def setup_ui(self):
+    def setup_gui(self):
         """Create the GUI interface"""
-        # Header
-        header_frame = tk.Frame(self.root, bg="#2c3e50", height=60)
-        header_frame.pack(fill="x", padx=0, pady=0)
-        header_frame.pack_propagate(False)
+        # Main frame
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        title_label = tk.Label(header_frame, text="OptimizerBeta Plugin Installer", 
-                              font=("Arial", 16, "bold"), fg="white", bg="#2c3e50")
-        title_label.pack(expand=True)
+        # Configure grid weights
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
         
-        # Main content
-        main_frame = tk.Frame(self.root, padx=20, pady=20)
-        main_frame.pack(fill="both", expand=True)
+        # Title
+        title_label = ttk.Label(main_frame, text="OptimizerBeta Plugin Installer", font=("Arial", 16, "bold"))
+        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
-        # Token input section
-        token_frame = tk.LabelFrame(main_frame, text="GitHub Token", font=("Arial", 10, "bold"), padx=10, pady=10)
-        token_frame.pack(fill="x", pady=(0, 15))
+        # Beta Key section
+        ttk.Label(main_frame, text="Beta Key:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.token_entry = ttk.Entry(main_frame, width=50, show="*")
+        self.token_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
         
-        tk.Label(token_frame, text="Enter your GitHub token (github_pat_...):").pack(anchor="w")
-        self.token_entry = tk.Entry(token_frame, width=60, font=("Consolas", 10))
-        self.token_entry.pack(fill="x", pady=(5, 10))
-        
-        # Buttons frame
-        button_frame = tk.Frame(token_frame)
-        button_frame.pack(fill="x")
-        
-        self.validate_btn = tk.Button(button_frame, text="Validate Token", 
-                                    command=self.validate_token, bg="#3498db", fg="white", 
-                                    font=("Arial", 10), padx=20)
-        self.validate_btn.pack(side="left")
-        
-        self.install_btn = tk.Button(button_frame, text="Install & Launch RuneLite", 
-                                   command=self.install_and_launch, bg="#27ae60", fg="white", 
-                                   font=("Arial", 10, "bold"), padx=20, state="disabled")
-        self.install_btn.pack(side="left", padx=(10, 0))
+        # Validate Key button
+        self.validate_btn = ttk.Button(main_frame, text="Validate Key", command=self.validate_token)
+        self.validate_btn.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
         # Status section
-        status_frame = tk.LabelFrame(main_frame, text="Status", font=("Arial", 10, "bold"), padx=10, pady=10)
-        status_frame.pack(fill="both", expand=True)
+        ttk.Label(main_frame, text="Status:").grid(row=3, column=0, sticky=tk.W, pady=(20, 5))
+        self.status_label = ttk.Label(main_frame, text="Enter Beta Key to begin", foreground="orange")
+        self.status_label.grid(row=3, column=1, sticky=tk.W, pady=(20, 5), padx=(10, 0))
         
-        self.status_text = scrolledtext.ScrolledText(status_frame, height=15, width=70, 
-                                                   font=("Consolas", 9), state="disabled")
-        self.status_text.pack(fill="both", expand=True)
+        # Install & Launch button
+        self.install_btn = ttk.Button(main_frame, text="Install & Launch RuneLite", 
+                                    command=self.install_and_launch, state="disabled")
+        self.install_btn.grid(row=4, column=0, columnspan=2, pady=20)
         
-        # Progress bar
-        self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
-        self.progress.pack(fill="x", pady=(10, 0))
+        # Log section
+        ttk.Label(main_frame, text="Installation Log:").grid(row=5, column=0, sticky=tk.W, pady=(10, 5))
         
-        # Initial status
+        # Log text area
+        self.log_text = scrolledtext.ScrolledText(main_frame, width=70, height=15, wrap=tk.WORD)
+        self.log_text.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        
+        # Configure grid weights for resizing
+        main_frame.rowconfigure(6, weight=1)
+        
+        # Initial log message
         self.log("OptimizerBeta Plugin Installer Started")
         self.log("=" * 50)
         
     def log(self, message):
-        """Add message to status log"""
-        self.status_text.config(state="normal")
-        self.status_text.insert(tk.END, f"{message}\\n")
-        self.status_text.see(tk.END)
-        self.status_text.config(state="disabled")
-        self.root.update()
+        """Add a message to the log display"""
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        log_entry = f"[{timestamp}] {message}"
         
+        self.log_text.insert(tk.END, log_entry + "\n")
+        self.log_text.see(tk.END)
+        self.root.update_idletasks()
+        
+        # Also write to file
+        try:
+            log_file = Path(__file__).parent / "log.txt"
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(log_entry + "\n")
+        except:
+            pass
+            
     def detect_runelite(self):
-        """Detect RuneLite installation"""
+        """Auto-detect RuneLite installation"""
         self.log("Detecting RuneLite installation...")
         
-        # Common RuneLite locations
-        possible_paths = [
+        # Common RuneLite installation locations
+        possible_locations = [
             Path.home() / ".runelite",
-            Path(os.environ.get("LOCALAPPDATA", "")) / "RuneLite",
-            Path(os.environ.get("APPDATA", "")) / "RuneLite",
-            Path("C:/RuneLite"),
-            Path(os.environ.get("PROGRAMFILES", "")) / "RuneLite",
-            Path(os.environ.get("PROGRAMFILES(X86)", "")) / "RuneLite"
+            Path(os.environ.get('APPDATA', '')) / "RuneLite",
+            Path(os.environ.get('LOCALAPPDATA', '')) / "RuneLite"
         ]
         
-        for path in possible_paths:
-            if path.exists():
-                plugins_dir = path / "plugins"
-                if not plugins_dir.exists():
-                    plugins_dir.mkdir(parents=True, exist_ok=True)
+        for location in possible_locations:
+            if location.exists() and location.is_dir():
+                self.runelite_dir = location
+                self.plugins_dir = location / "plugins"
+                self.sideloaded_plugins_dir = location / "sideloaded-plugins"
+                self.repository_dir = location / "repository2"
                 
-                self.plugins_dir = plugins_dir
-                self.log(f"✓ RuneLite found: {path}")
-                self.log(f"✓ Plugins directory: {plugins_dir}")
+                # Create directories if they don't exist
+                self.plugins_dir.mkdir(exist_ok=True)
+                self.sideloaded_plugins_dir.mkdir(exist_ok=True)
+                
+                self.log(f"OK: RuneLite found: {self.runelite_dir}")
+                self.log(f"OK: Plugins directory: {self.plugins_dir}")
                 return
-        
-        self.log("⚠ RuneLite not found in standard locations")
-        self.log("Please ensure RuneLite is installed before proceeding")
+                
+        self.log("ERROR: RuneLite installation not found!")
+        self.log("Please install RuneLite first from https://runelite.net/")
         
     def validate_token(self):
-        """Validate GitHub token"""
+        """Validate the GitHub token"""
         self.token = self.token_entry.get().strip()
         
         if not self.token:
-            messagebox.showerror("Error", "Please enter a GitHub token")
+            messagebox.showerror("Error", "Please enter a Beta Key")
             return
             
         if not (self.token.startswith("github_pat_") or self.token.startswith("ghp_")):
-            messagebox.showerror("Error", "Token must start with 'github_pat_' or 'ghp_'")
+            messagebox.showerror("Error", "Invalid key format. Key should start with 'github_pat_' or 'ghp_'")
             return
             
-        self.progress.start()
-        self.validate_btn.config(state="disabled")
+        self.log("Validating Beta Key...")
         
-        # Run validation in thread to prevent UI freezing
-        threading.Thread(target=self._validate_token_thread, daemon=True).start()
-        
-    def _validate_token_thread(self):
-        """Validate token in background thread"""
         try:
-            self.log("Validating GitHub token...")
-            
-            # Test token access to repository
             headers = {"Authorization": f"token {self.token}"}
-            response = requests.get(f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}", 
+            response = requests.get(f"https://api.github.com/repos/{self.github_repo_owner}/{self.github_repo_name}", 
                                   headers=headers, timeout=10)
             
             if response.status_code == 200:
-                self.log("✓ Token validation successful!")
-                self.log("✓ Repository access confirmed")
-                self.root.after(0, self._token_valid)
+                self.log("OK: Beta Key validation successful!")
+                self.log("OK: Repository access confirmed")
+                self.status_label.config(text="Beta Key valid - Ready to install", foreground="green")
+                self.install_btn.config(state="normal")
             else:
-                error_msg = f"Token validation failed (HTTP {response.status_code})"
-                if response.status_code == 401:
-                    error_msg += "\\n- Token is invalid or expired"
-                elif response.status_code == 403:
-                    error_msg += "\\n- Token lacks repository access"
-                elif response.status_code == 404:
-                    error_msg += "\\n- Repository not found or no access"
-                    
-                self.log(f"✗ {error_msg}")
-                self.root.after(0, lambda: self._token_invalid(error_msg))
+                self.log(f"ERROR: Beta Key validation failed (HTTP {response.status_code})")
+                self.status_label.config(text="Invalid Beta Key", foreground="red")
+                messagebox.showerror("Error", f"Beta Key validation failed: {response.status_code}")
                 
-        except requests.exceptions.RequestException as e:
-            error_msg = f"Network error: {str(e)}"
-            self.log(f"✗ {error_msg}")
-            self.root.after(0, lambda: self._token_invalid(error_msg))
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            self.log(f"✗ {error_msg}")
-            self.root.after(0, lambda: self._token_invalid(error_msg))
+        except requests.RequestException as e:
+            self.log(f"ERROR: Network error during validation: {e}")
+            messagebox.showerror("Error", f"Network error: {e}")
             
-    def _token_valid(self):
-        """Handle successful token validation"""
-        self.progress.stop()
-        self.validate_btn.config(state="normal")
-        self.install_btn.config(state="normal")
-        messagebox.showinfo("Success", "Token validated successfully!\\nYou can now install and launch the plugin.")
-        
-    def _token_invalid(self, error_msg):
-        """Handle failed token validation"""
-        self.progress.stop()
-        self.validate_btn.config(state="normal")
-        self.install_btn.config(state="disabled")
-        messagebox.showerror("Token Validation Failed", error_msg)
-        
     def install_and_launch(self):
         """Install plugin and launch RuneLite"""
-        if not self.plugins_dir:
-            messagebox.showerror("Error", "RuneLite installation not found!\\nPlease install RuneLite first.")
+        if not self.runelite_dir:
+            messagebox.showerror("Error", "RuneLite installation not found!\nPlease install RuneLite first.")
             return
             
-        self.progress.start()
+        # Disable button during installation
         self.install_btn.config(state="disabled")
         
-        # Run installation in thread
-        threading.Thread(target=self._install_and_launch_thread, daemon=True).start()
+        # Run installation in background thread
+        thread = threading.Thread(target=self._install_and_launch_thread)
+        thread.daemon = True
+        thread.start()
         
     def _install_and_launch_thread(self):
         """Install and launch in background thread"""
         try:
             # Step 1: Download plugin
             self.log("Downloading plugin from GitHub...")
-            headers = {"Authorization": f"token {self.token}"}
-            
-            response = requests.get(self.download_url, headers=headers, timeout=30)
-            response.raise_for_status()
-            
-            if len(response.content) < 1024:  # Less than 1KB probably means error
-                raise Exception("Downloaded file appears to be too small or invalid")
-                
-            self.log(f"✓ Plugin downloaded ({len(response.content):,} bytes)")
-            
-            # Step 2: Install plugin to launcher directory (where batch script expects it)
-            runelite_dir = Path.home() / ".runelite"
-            launcher_plugins_dir = runelite_dir / "plugins"
-            launcher_plugins_dir.mkdir(exist_ok=True)
-            
-            plugin_path = launcher_plugins_dir / self.plugin_filename
-            self.temp_plugin_path = plugin_path
-            
-            with open(plugin_path, 'wb') as f:
-                f.write(response.content)
-                
-            self.log(f"✓ Plugin installed to launcher classpath: {plugin_path}")
-            
-            # Step 3: Setup RuneLite development environment
-            self.log("Setting up RuneLite development environment...")
-            self._setup_runelite_environment()
-            
-            # Step 4: Create custom launcher
-            self.log("Creating custom developer mode launcher...")
-            self._configure_runelite_launcher()
-            
-            # Step 5: Launch RuneLite
-            self.log("Launching RuneLite in developer mode...")
-            self._launch_runelite()
-            
-            # Step 6: Wait for RuneLite to start and load plugins
-            self.log("Waiting for RuneLite to start and load plugin...")
-            time.sleep(10)  # Give RuneLite time to start and load the plugin
-            
-            self.log("=" * 50)
-            self.log("SUCCESS! Plugin installation complete")
-            self.log("RuneLite has been launched in developer mode with the Optimizer plugin")
-            self.log("The plugin will remain active until you close RuneLite")
-            self.log("Plugin file will be cleaned up when you close this installer")
-            
-            self.root.after(0, self._installation_complete)
-            
-        except requests.exceptions.RequestException as e:
-            error_msg = f"Download failed: {str(e)}"
-            self.log(f"✗ {error_msg}")
-            self.root.after(0, lambda: self._installation_failed(error_msg))
-        except Exception as e:
-            error_msg = f"Installation failed: {str(e)}"
-            self.log(f"✗ {error_msg}")
-            self.root.after(0, lambda: self._installation_failed(error_msg))
-            
-    def _launch_runelite(self):
-        """Launch RuneLite application with developer mode settings"""
-        # Configure RuneLite launcher settings for external plugins and insecure credentials
-        self._configure_runelite_launcher()
-        
-        # VM arguments (must come before -jar) - matching gradle runRuneLite task
-        vm_args = [
-            "-ea",                                     # Enable assertions (required for dev tools)
-            "-Xmx768m", 
-            "-Xss2m",
-            "-XX:CompileThreshold=1500",
-            "-Dsun.java2d.opengl=false",              # Disable hardware acceleration
-            "-Drunelite.pluginhub.url=https://repo.runelite.net/plugins",
-            "--add-opens=java.desktop/sun.awt=ALL-UNNAMED",
-            "--add-opens=java.desktop/sun.swing=ALL-UNNAMED"
-        ]
-        
-        # Program arguments for RuneLite launcher
-        program_args = [
-            "--debug"                                 # Enable debug logging
-        ]
-        
-        # Try custom launcher first, then fallback to standard RuneLite
-        if self.custom_launcher and self.custom_launcher.exists():
-            try:
-                if os.name == 'nt':
-                    self.runelite_process = subprocess.Popen([str(self.custom_launcher)],
-                                                           creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-                else:
-                    self.runelite_process = subprocess.Popen(['bash', str(self.custom_launcher)])
-                self.log(f"✓ RuneLite launched via custom developer mode launcher")
+            if not self._download_plugin():
                 return
-            except Exception as e:
-                self.log(f"Failed to launch custom launcher: {e}")
-        
-        # Fallback: Try to find standard RuneLite executable
-        possible_exes = [
-            "RuneLite.exe",
-            "RuneLite.jar",
-            Path.home() / "AppData/Local/RuneLite/RuneLite.exe",
-            Path("C:/Users") / os.environ.get("USERNAME", "") / "AppData/Local/RuneLite/RuneLite.exe"
-        ]
-        
-        for exe_path in possible_exes:
-            if isinstance(exe_path, str):
-                # Try system PATH
-                try:
-                    cmd = [exe_path] + program_args
-                    self.runelite_process = subprocess.Popen(cmd, 
-                                                           creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
-                    self.log(f"✓ RuneLite launched via: {exe_path}")
-                    self.log(f"✓ Arguments: {' '.join(program_args)}")
-                    return
-                except FileNotFoundError:
-                    continue
-            else:
-                # Try specific path
-                if exe_path.exists():
-                    try:
-                        if exe_path.suffix == '.jar':
-                            # For JAR files, VM args go before -jar, program args after
-                            cmd = ['java'] + vm_args + ['-jar', str(exe_path)] + program_args
-                        else:
-                            # For EXE files, just add program args
-                            cmd = [str(exe_path)] + program_args
-                            
-                        self.runelite_process = subprocess.Popen(cmd,
-                                                               creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
-                        self.log(f"✓ RuneLite launched via: {exe_path}")
-                        if exe_path.suffix == '.jar':
-                            self.log(f"✓ VM Args: {' '.join(vm_args)}")
-                        self.log(f"✓ Program Args: {' '.join(program_args)}")
-                        return
-                    except Exception as e:
-                        self.log(f"Failed to launch {exe_path}: {e}")
-                        continue
-        
-        # If all else fails, show instructions
-        self.log("⚠ Could not launch RuneLite automatically.")
-        self.log("Please run the custom launcher manually:")
-        if os.name == 'nt':
-            self.log("1. Navigate to your user folder/.runelite/")
-            self.log("2. Double-click 'runelite_dev.cmd'")
-        else:
-            self.log("1. Open terminal and run:")
-            self.log("   bash ~/.runelite/runelite_dev.sh")
-        self.log("This will launch RuneLite with your plugin in developer mode.")
-        
-        # Try opening RuneLite directory
-        runelite_dir = Path.home() / ".runelite"
-        if runelite_dir.exists():
-            os.startfile(runelite_dir) if os.name == 'nt' else subprocess.call(['open', runelite_dir])
-            self.log("✓ Opened RuneLite directory for manual launch")
-            
-    def _configure_runelite_launcher(self):
-        """Create a custom launcher class and script for developer mode"""
-        try:
-            # Create RuneLite configuration directory
-            runelite_dir = Path.home() / ".runelite"
-            runelite_dir.mkdir(exist_ok=True)
-            
-            # Create launcher subdirectory
-            launcher_dir = runelite_dir / "launcher"
-            launcher_dir.mkdir(exist_ok=True)
-            
-            # Step 1: Write pre-compiled launcher class
-            launcher_class_file = launcher_dir / "OptimizerLauncher.class"
-            class_data = base64.b64decode(self.LAUNCHER_CLASS_DATA)
-            
-            with open(launcher_class_file, 'wb') as f:
-                f.write(class_data)
-            
-            self.log("✓ Installed pre-compiled launcher class")
-            
-            # Step 2: Create launcher script
-            launcher_script = runelite_dir / ("runelite_dev.cmd" if os.name == 'nt' else "runelite_dev.sh")
-            
-            if os.name == 'nt':
-                # Windows batch script with Java auto-detection
-                script_content = '''@echo off
-echo Starting RuneLite with Optimizer plugin in developer mode...
-echo.
-
-REM Find Java executable
-set JAVA_CMD=
-echo Looking for Java installation...
-
-REM Check RuneLite bundled Java first (highest priority)
-echo Checking for RuneLite bundled Java...
-
-REM Common RuneLite installation locations with bundled Java
-for %%r in (
-    "%LOCALAPPDATA%\\RuneLite"
-    "%APPDATA%\\RuneLite"
-    "%ProgramFiles%\\RuneLite"
-    "%ProgramFiles(x86)%\\RuneLite"
-    "%USERPROFILE%\\AppData\\Local\\RuneLite"
-) do (
-    if exist "%%r\\jre\\bin\\java.exe" (
-        set JAVA_CMD=%%r\\jre\\bin\\java.exe
-        echo Found RuneLite bundled Java: %%r\\jre
-        goto :java_found
-    )
-    if exist "%%r\\runtime\\bin\\java.exe" (
-        set JAVA_CMD=%%r\\runtime\\bin\\java.exe
-        echo Found RuneLite bundled Java: %%r\\runtime
-        goto :java_found
-    )
-    if exist "%%r\\java\\bin\\java.exe" (
-        set JAVA_CMD=%%r\\java\\bin\\java.exe
-        echo Found RuneLite bundled Java: %%r\\java
-        goto :java_found
-    )
-)
-
-REM Check if java is in PATH
-where java >nul 2>nul
-if %ERRORLEVEL% equ 0 (
-    set JAVA_CMD=java
-    echo Found Java in PATH
-    goto :java_found
-)
-
-REM Check JAVA_HOME
-if defined JAVA_HOME (
-    if exist "%JAVA_HOME%\\bin\\java.exe" (
-        set JAVA_CMD=%JAVA_HOME%\\bin\\java.exe
-        echo Found Java via JAVA_HOME: %JAVA_HOME%
-        goto :java_found
-    )
-)
-
-REM Search for Java installations more thoroughly
-echo Searching for Java installations...
-
-REM Check Program Files directories with wildcard expansion
-for /d %%d in ("%ProgramFiles%\\Java\\*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-for /d %%d in ("%ProgramFiles(x86)%\\Java\\*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-REM Check Eclipse Adoptium/Temurin
-for /d %%d in ("%ProgramFiles%\\Eclipse Adoptium\\*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-REM Check Microsoft OpenJDK
-for /d %%d in ("%ProgramFiles%\\Microsoft\\*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-REM Check Azul Zulu
-for /d %%d in ("%ProgramFiles%\\Zulu\\*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-REM Check Amazon Corretto
-for /d %%d in ("%ProgramFiles%\\Amazon Corretto\\*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-REM Check Oracle JDK/JRE newer locations
-for /d %%d in ("%ProgramFiles%\\Java\\jdk*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-for /d %%d in ("%ProgramFiles%\\Java\\jre*") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java at: %%d
-        goto :java_found
-    )
-)
-
-REM Check user-specific installations
-for /d %%d in ("%USERPROFILE%\\scoop\\apps\\openjdk*\\current") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java via Scoop: %%d
-        goto :java_found
-    )
-)
-
-REM Check Chocolatey installations
-for /d %%d in ("%ProgramData%\\chocolatey\\lib\\*jdk*\\tools") do (
-    if exist "%%d\\bin\\java.exe" (
-        set JAVA_CMD=%%d\\bin\\java.exe
-        echo Found Java via Chocolatey: %%d
-        goto :java_found
-    )
-)
-
-REM Try Windows Registry lookup as last resort
-echo Checking Windows Registry for Java...
-for /f "tokens=2*" %%a in ('reg query "HKLM\\SOFTWARE\\JavaSoft\\Java Runtime Environment" /s /v JavaHome 2^>nul ^| find "JavaHome"') do (
-    if exist "%%b\\bin\\java.exe" (
-        set JAVA_CMD=%%b\\bin\\java.exe
-        echo Found Java via Registry: %%b
-        goto :java_found
-    )
-)
-
-for /f "tokens=2*" %%a in ('reg query "HKLM\\SOFTWARE\\JavaSoft\\Java Development Kit" /s /v JavaHome 2^>nul ^| find "JavaHome"') do (
-    if exist "%%b\\bin\\java.exe" (
-        set JAVA_CMD=%%b\\bin\\java.exe
-        echo Found Java via Registry: %%b
-        goto :java_found
-    )
-)
-
-echo ERROR: Java not found!
-echo.
-echo Please install Java ^(JRE or JDK^) and try again.
-echo You can download Java from:
-echo - https://www.oracle.com/java/technologies/downloads/
-echo - https://adoptium.net/
-echo.
-echo Or make sure Java is in your PATH environment variable.
-echo.
-pause
-exit /b 1
-
-:java_found
-echo.
-echo Classpath locations:
-echo - Repository: %~dp0repository2\\*
-echo - Plugin: %~dp0plugins\\optimizer-1.0-SNAPSHOT.jar
-echo - Launcher: %~dp0launcher
-echo.
-
-"%JAVA_CMD%" -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^
-     -Dsun.java2d.opengl=false ^
-     -Drunelite.pluginhub.url=https://repo.runelite.net/plugins ^
-     --add-opens=java.desktop/sun.awt=ALL-UNNAMED ^
-     --add-opens=java.desktop/sun.swing=ALL-UNNAMED ^
-     -cp "%~dp0repository2\\*;%~dp0plugins\\optimizer-1.0-SNAPSHOT.jar;%~dp0launcher" ^
-     OptimizerLauncher
-
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo ERROR: Failed to launch RuneLite ^(Error code: %ERRORLEVEL%^)
-    echo.
-    echo Possible causes:
-    echo - Required JAR files are missing: 
-    echo   * %~dp0repository2\\*.jar
-    echo   * %~dp0plugins\\optimizer-1.0-SNAPSHOT.jar  
-    echo   * %~dp0launcher\\OptimizerLauncher.class
-    echo - Java version compatibility issue
-    echo - Plugin file was removed too early
-    echo.
-    echo Current directory: %~dp0
-    echo Java command used: "%JAVA_CMD%"
-    echo.
-    echo Press any key to close this window...
-    pause >nul
-) else (
-    echo RuneLite launched successfully!
-    echo You can now close this window.
-)
-'''
-            else:
-                # Linux/Mac shell script
-                script_content = '''#!/bin/bash
-java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 \\
-     -Dsun.java2d.opengl=false \\
-     -Drunelite.pluginhub.url=https://repo.runelite.net/plugins \\
-     --add-opens=java.desktop/sun.awt=ALL-UNNAMED \\
-     --add-opens=java.desktop/sun.swing=ALL-UNNAMED \\
-     -cp "$(dirname "$0")/repository2/*:$(dirname "$0")/plugins/optimizer-1.0-SNAPSHOT.jar:$(dirname "$0")/launcher" \\
-     OptimizerLauncher
-'''
-            
-            with open(launcher_script, 'w') as f:
-                f.write(script_content)
                 
-            # Make executable on Unix systems
-            if os.name != 'nt':
-                launcher_script.chmod(0o755)
+            # Step 2: Setup RuneLite development environment
+            self.log("Setting up RuneLite development environment...")
+            if not self._setup_development_environment():
+                return
                 
-            self.custom_launcher = launcher_script
-            self.launcher_class_file = launcher_class_file
-            self.log("✓ Created custom developer mode launcher script")
-            self.log("✓ Configured: explicit plugin loading, developer-mode, debug, insecure-write-credentials")
+            # Step 3: Launch RuneLite with developer mode
+            self.log("Launching RuneLite in developer mode...")
+            if not self._launch_runelite():
+                return
+                
+            self.log("Installation completed successfully!")
+            self.log("Plugin should be loaded and developer tools active")
             
         except Exception as e:
-            self.log(f"⚠ Could not create custom launcher: {e}")
-            self.custom_launcher = None
-            self.launcher_class_file = None
+            self.log(f"ERROR: Installation failed: {e}")
+        finally:
+            # Re-enable button
+            self.root.after(0, lambda: self.install_btn.config(state="normal"))
             
-    def _setup_runelite_environment(self):
-        """Download and setup RuneLite repository dependencies"""
+    def _download_plugin(self):
+        """Download the plugin JAR file"""
         try:
-            runelite_dir = Path.home() / ".runelite"
-            repo_dir = runelite_dir / "repository2"
-            repo_dir.mkdir(exist_ok=True)
+            headers = {"Authorization": f"token {self.token}"}
+            response = requests.get(self.plugin_download_url, headers=headers, timeout=30)
             
-            # Essential RuneLite JARs needed for development
+            if response.status_code == 200:
+                # Save to both plugins and sideloaded-plugins directories
+                plugin_file = self.plugins_dir / "optimizer-1.0-SNAPSHOT.jar"
+                sideloaded_file = self.sideloaded_plugins_dir / "optimizer-1.0-SNAPSHOT.jar"
+                
+                # Write to plugins directory
+                with open(plugin_file, "wb") as f:
+                    f.write(response.content)
+                    
+                # Copy to sideloaded-plugins directory (where RuneLite actually loads from)
+                with open(sideloaded_file, "wb") as f:
+                    f.write(response.content)
+                
+                self.log(f"OK: Plugin downloaded ({len(response.content):,} bytes)")
+                self.log(f"OK: Plugin installed to: {plugin_file}")
+                self.log(f"OK: Plugin copied to: {sideloaded_file}")
+                
+                # Create backup
+                backup_name = f"optimizer-1.0-SNAPSHOT.jar.backup.{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+                backup_file = self.plugins_dir / backup_name
+                with open(backup_file, "wb") as f:
+                    f.write(response.content)
+                self.log(f"OK: Backup created: {backup_name}")
+                
+                return True
+            else:
+                self.log(f"ERROR: Failed to download plugin (HTTP {response.status_code})")
+                return False
+                
+        except Exception as e:
+            self.log(f"ERROR: Plugin download failed: {e}")
+            return False
+            
+    def _setup_development_environment(self):
+        """Setup RuneLite development environment"""
+        try:
+            # Required JAR files for RuneLite
             required_jars = [
-                "https://repo.runelite.net/net/runelite/client/1.11.12.2/client-1.11.12.2.jar",
-                "https://repo.runelite.net/net/runelite/runelite-api/1.11.12.2/runelite-api-1.11.12.2.jar",
-                "https://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.2.9/logback-classic-1.2.9.jar",
-                "https://repo1.maven.org/maven2/ch/qos/logback/logback-core/1.2.9/logback-core-1.2.9.jar",
-                "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar",
-                "https://repo1.maven.org/maven2/com/google/inject/guice/4.1.0/guice-4.1.0-no_aop.jar",
-                "https://repo1.maven.org/maven2/com/google/guava/guava/23.2-jre/guava-23.2-jre.jar"
+                "client-1.11.12.2.jar",
+                "runelite-api-1.11.12.2-runtime.jar", 
+                "logback-classic-1.2.9.jar",
+                "logback-core-1.2.9.jar",
+                "slf4j-api-1.7.25.jar",
+                "guice-4.1.0-no_aop.jar",
+                "guava-23.2-jre.jar"
             ]
             
-            for jar_url in required_jars:
-                jar_name = jar_url.split("/")[-1]
-                jar_path = repo_dir / jar_name
+            # Check if repository directory exists
+            if not self.repository_dir.exists():
+                self.log(f"WARNING: Repository directory not found: {self.repository_dir}")
+                self.log("This may indicate RuneLite is not properly installed")
+                return False
                 
-                if not jar_path.exists():
-                    self.log(f"Downloading {jar_name}...")
-                    response = requests.get(jar_url, timeout=30)
-                    response.raise_for_status()
-                    
-                    with open(jar_path, 'wb') as f:
-                        f.write(response.content)
+            # Check for required JAR files
+            missing_jars = []
+            for jar in required_jars:
+                jar_path = self.repository_dir / jar
+                if jar_path.exists():
+                    self.log(f"OK: {jar} already exists")
                 else:
-                    self.log(f"✓ {jar_name} already exists")
-            
-            self.log("✓ RuneLite development environment ready")
+                    missing_jars.append(jar)
+                    
+            if missing_jars:
+                self.log(f"WARNING: Missing JAR files: {missing_jars}")
+                self.log("Please ensure RuneLite is properly installed and has been run at least once")
+                return False
+                
+            self.log("OK: RuneLite development environment ready")
+            return True
             
         except Exception as e:
-            self.log(f"⚠ Failed to setup RuneLite environment: {e}")
-            raise
+            self.log(f"ERROR: Failed to setup development environment: {e}")
+            return False
             
-    def _installation_complete(self):
-        """Handle successful installation"""
-        self.progress.stop()
-        self.install_btn.config(state="normal", text="Install & Launch Again")
-        messagebox.showinfo("Installation Complete", 
-                          "Plugin successfully installed and RuneLite launched!\\n\\n"
-                          "The plugin is now active and will remain so until you close RuneLite.")
-        
-    def _installation_failed(self, error_msg):
-        """Handle failed installation"""
-        self.progress.stop()
-        self.install_btn.config(state="normal")
-        
-        # Clean up if plugin was partially installed
-        if self.temp_plugin_path and self.temp_plugin_path.exists():
-            try:
-                self.temp_plugin_path.unlink()
-                self.log("Cleaned up partial plugin installation")
-            except:
-                pass
-        
-        # Clean up launcher files
-        if self.launcher_class_file and self.launcher_class_file.exists():
-            try:
-                self.launcher_class_file.unlink()
-                self.log("Cleaned up partial launcher installation")
-            except:
-                pass
+    def _launch_runelite(self):
+        """Launch RuneLite with developer mode"""
+        try:
+            # Find RuneLite bundled Java
+            java_executable = self._find_java()
+            if not java_executable:
+                self.log("ERROR: Java executable not found")
+                return False
                 
-        messagebox.showerror("Installation Failed", error_msg)
+            self.log(f"Using Java: {java_executable}")
+            
+            # Check for existing Jagex credentials and preserve them
+            self._preserve_jagex_credentials()
+            
+            # Build the direct Java command (the working approach)
+            java_cmd = [
+                java_executable,
+                "-ea", "-Xmx768m", "-Xss2m", "-XX:CompileThreshold=1500",
+                "-Dsun.java2d.opengl=false",
+                "-Drunelite.pluginhub.url=https://repo.runelite.net/plugins",
+                "--add-opens=java.desktop/sun.awt=ALL-UNNAMED",
+                "--add-opens=java.desktop/sun.swing=ALL-UNNAMED",
+                "-cp", str(self.repository_dir / "*"),
+                "net.runelite.client.RuneLite",
+                "--developer-mode", "--debug", "--insecure-write-credentials"
+            ]
+            
+            # Get Jagex Launcher environment variables if available
+            jagex_env = self._get_jagex_environment()
+            process_env = os.environ.copy()
+            if jagex_env:
+                process_env.update(jagex_env)
+                self.log("Using Jagex Launcher environment variables for credential access")
+                
+                # Also write credentials to file if we have tokens
+                if 'JX_REFRESH_TOKEN' in jagex_env and 'JX_ACCESS_TOKEN' in jagex_env:
+                    self._write_jagex_credentials(jagex_env)
+            
+            self.log("Launching RuneLite with developer mode and external plugin support...")
+            
+            # Launch RuneLite with environment variables
+            if os.name == 'nt':
+                self.runelite_process = subprocess.Popen(java_cmd, env=process_env, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+            else:
+                self.runelite_process = subprocess.Popen(java_cmd, env=process_env)
+                
+            self.log("OK: RuneLite launched successfully!")
+            self.log("Developer mode is active with:")
+            self.log("  - External plugin support enabled")
+            self.log("  - Developer tools available")
+            self.log("  - Debug logging enabled")
+            self.log("  - Insecure credential writing enabled")
+            
+            return True
+            
+        except Exception as e:
+            self.log(f"ERROR: Failed to launch RuneLite: {e}")
+            return False
+            
+    def _find_java(self):
+        """Find Java executable, preferring RuneLite bundled version"""
+        java_locations = [
+            # RuneLite bundled Java (highest priority)
+            Path(os.environ.get('LOCALAPPDATA', '')) / 'RuneLite' / 'jre' / 'bin' / 'java.exe',
+            Path(os.environ.get('APPDATA', '')) / 'RuneLite' / 'jre' / 'bin' / 'java.exe',
+            Path(os.environ.get('PROGRAMFILES', '')) / 'RuneLite' / 'jre' / 'bin' / 'java.exe',
+            Path(os.environ.get('PROGRAMFILES(X86)', '')) / 'RuneLite' / 'jre' / 'bin' / 'java.exe',
+        ]
+        
+        # Check for RuneLite bundled Java first
+        for java_path in java_locations:
+            if java_path.exists():
+                self.log(f"Found RuneLite bundled Java: {java_path.parent.parent}")
+                return str(java_path)
+                
+        # Fall back to system Java
+        try:
+            result = subprocess.run(['where', 'java'], capture_output=True, text=True, check=True)
+            java_path = result.stdout.strip().split('\n')[0]
+            self.log(f"Found system Java: {java_path}")
+            return java_path
+        except subprocess.CalledProcessError:
+            pass
+            
+        # Check JAVA_HOME
+        java_home = os.environ.get('JAVA_HOME')
+        if java_home:
+            java_path = Path(java_home) / 'bin' / 'java.exe'
+            if java_path.exists():
+                self.log(f"Found Java via JAVA_HOME: {java_home}")
+                return str(java_path)
+                
+        return None
+        
+    def _preserve_jagex_credentials(self):
+        """Preserve existing Jagex credentials if they exist"""
+        try:
+            credentials_file = self.runelite_dir / "credentials.properties"
+            if credentials_file.exists():
+                with open(credentials_file, 'r') as f:
+                    content = f.read()
+                    
+                # Check if we have valid Jagex tokens
+                if "JX_REFRESH_TOKEN=" in content and "JX_ACCESS_TOKEN=" in content:
+                    # Look for non-empty values
+                    lines = content.split('\n')
+                    has_refresh = any(line.startswith("JX_REFRESH_TOKEN=") and len(line.split('=', 1)[1].strip()) > 0 for line in lines)
+                    has_access = any(line.startswith("JX_ACCESS_TOKEN=") and len(line.split('=', 1)[1].strip()) > 0 for line in lines)
+                    
+                    if has_refresh and has_access:
+                        self.log("Found existing Jagex credentials - preserving for login")
+                    else:
+                        self.log("Found empty Jagex credentials - may need to login via Jagex Launcher first")
+                else:
+                    self.log("No Jagex credentials found - using standard login")
+        except Exception as e:
+            self.log(f"Could not check credentials: {e}")
+            
+    def _get_jagex_environment(self):
+        """Get Jagex Launcher environment variables from running process"""
+        # First try to install psutil if not available
+        try:
+            import psutil
+        except ImportError:
+            self.log("Installing psutil for Jagex credential detection...")
+            try:
+                import subprocess
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "psutil"])
+                import psutil
+                self.log("psutil installed successfully")
+            except Exception as e:
+                self.log(f"Could not install psutil: {e}")
+                return None
+                
+        try:
+            # Based on RuneLite's documented approach
+            key1 = 'JX_CHARACTER_ID'
+            key2 = 'JX_SESSION_ID'
+            key3 = 'JX_DISPLAY_NAME'
+            key4 = 'JX_REFRESH_TOKEN'
+            key5 = 'JX_ACCESS_TOKEN'
+            env_dict = {}
+            
+            # Look for JagexLauncher.exe process
+            for proc in psutil.process_iter():
+                try:
+                    if "JagexLauncher.exe" in proc.name():
+                        env = proc.environ()
+                        # Check for the main three environment variables
+                        if env.get(key1):
+                            env_dict[key1] = env.get(key1)
+                            env_dict[key2] = env.get(key2)
+                            env_dict[key3] = env.get(key3)
+                            # Also check for token variables if they exist
+                            if env.get(key4):
+                                env_dict[key4] = env.get(key4)
+                            if env.get(key5):
+                                env_dict[key5] = env.get(key5)
+                            break
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+                    
+            if key1 in env_dict and key2 in env_dict and key3 in env_dict:
+                self.log("Found Jagex Launcher environment variables:")
+                self.log(f"  - Character ID: {env_dict[key1][:10]}...")
+                self.log(f"  - Session ID: {env_dict[key2][:10]}...")
+                self.log(f"  - Display Name: {env_dict[key3]}")
+                return env_dict
+            else:
+                self.log("Could not find Jagex environment variables. Make sure:")
+                self.log("  1. Jagex Launcher is running")
+                self.log("  2. You've logged in through Jagex Launcher")
+                self.log("  3. Try launching RuneLite from Jagex Launcher once first")
+                
+        except Exception as e:
+            self.log(f"Error getting Jagex environment: {e}")
+            
+        return None
+        
+    def _write_jagex_credentials(self, jagex_env):
+        """Write Jagex credentials to credentials.properties file"""
+        try:
+            credentials_file = self.runelite_dir / "credentials.properties"
+            
+            # Read existing content if file exists
+            existing_lines = []
+            if credentials_file.exists():
+                with open(credentials_file, 'r') as f:
+                    existing_lines = f.readlines()
+            
+            # Update or add credential lines
+            updated = False
+            new_lines = []
+            
+            for line in existing_lines:
+                if line.startswith('JX_REFRESH_TOKEN='):
+                    new_lines.append(f"JX_REFRESH_TOKEN={jagex_env.get('JX_REFRESH_TOKEN', '')}\n")
+                    updated = True
+                elif line.startswith('JX_ACCESS_TOKEN='):
+                    new_lines.append(f"JX_ACCESS_TOKEN={jagex_env.get('JX_ACCESS_TOKEN', '')}\n")
+                    updated = True
+                else:
+                    new_lines.append(line)
+            
+            # If not updated, append the credentials
+            if not updated and 'JX_REFRESH_TOKEN' in jagex_env:
+                if not any(line.strip() for line in new_lines):  # If file is empty or only has header
+                    new_lines.append(f"JX_REFRESH_TOKEN={jagex_env.get('JX_REFRESH_TOKEN', '')}\n")
+                    new_lines.append(f"JX_ACCESS_TOKEN={jagex_env.get('JX_ACCESS_TOKEN', '')}\n")
+                else:
+                    new_lines.append(f"JX_REFRESH_TOKEN={jagex_env.get('JX_REFRESH_TOKEN', '')}\n")
+                    new_lines.append(f"JX_ACCESS_TOKEN={jagex_env.get('JX_ACCESS_TOKEN', '')}\n")
+            
+            # Write back to file
+            with open(credentials_file, 'w') as f:
+                f.writelines(new_lines)
+                
+            self.log("Wrote Jagex credentials to credentials.properties")
+            
+        except Exception as e:
+            self.log(f"Error writing credentials: {e}")
         
     def run(self):
-        """Start the application"""
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        """Start the GUI application"""
         self.root.mainloop()
-        
-    def on_closing(self):
-        """Handle application closing"""
-        # Clean up any remaining plugin files
-        if self.temp_plugin_path and self.temp_plugin_path.exists():
-            try:
-                self.temp_plugin_path.unlink()
-                self.log("Cleaned up plugin file on exit")
-            except:
-                pass
-        
-        # Clean up launcher files
-        if self.launcher_class_file and self.launcher_class_file.exists():
-            try:
-                self.launcher_class_file.unlink()
-                self.log("Cleaned up launcher files on exit")
-            except:
-                pass
-                
-        self.root.destroy()
 
 if __name__ == "__main__":
     try:
         app = OptimizerBetaInstaller()
         app.run()
     except Exception as e:
-        import traceback
-        error_msg = f"Application error: {str(e)}\\n{traceback.format_exc()}"
-        print(error_msg)
-        
-        # Try to show error in messagebox if possible
-        try:
-            import tkinter.messagebox
-            tkinter.messagebox.showerror("Application Error", error_msg)
-        except:
-            pass
+        print(f"Fatal error: {e}")
+        input("Press Enter to exit...")
