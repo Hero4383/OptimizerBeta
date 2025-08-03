@@ -435,21 +435,120 @@ if %ERRORLEVEL% equ 0 (
     goto :java_found
 )
 
-REM Check common Java installation locations
-for %%i in (
-    "%JAVA_HOME%\\bin\\java.exe"
-    "%ProgramFiles%\\Java\\jre*\\bin\\java.exe"
-    "%ProgramFiles%\\Java\\jdk*\\bin\\java.exe"
-    "%ProgramFiles(x86)%\\Java\\jre*\\bin\\java.exe"
-    "%ProgramFiles(x86)%\\Java\\jdk*\\bin\\java.exe"
-    "%ProgramFiles%\\Eclipse Adoptium\\jre*\\bin\\java.exe"
-    "%ProgramFiles%\\Eclipse Adoptium\\jdk*\\bin\\java.exe"
-    "%ProgramFiles%\\Microsoft\\jdk*\\bin\\java.exe"
-    "%ProgramFiles%\\Zulu\\zulu*\\bin\\java.exe"
-) do (
-    if exist "%%i" (
-        set JAVA_CMD=%%i
-        echo Found Java at: %%i
+REM Check JAVA_HOME first
+if defined JAVA_HOME (
+    if exist "%JAVA_HOME%\\bin\\java.exe" (
+        set JAVA_CMD=%JAVA_HOME%\\bin\\java.exe
+        echo Found Java via JAVA_HOME: %JAVA_HOME%
+        goto :java_found
+    )
+)
+
+REM Search for Java installations more thoroughly
+echo Searching for Java installations...
+
+REM Check Program Files directories with wildcard expansion
+for /d %%d in ("%ProgramFiles%\\Java\\*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+for /d %%d in ("%ProgramFiles(x86)%\\Java\\*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+REM Check Eclipse Adoptium/Temurin
+for /d %%d in ("%ProgramFiles%\\Eclipse Adoptium\\*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+REM Check Microsoft OpenJDK
+for /d %%d in ("%ProgramFiles%\\Microsoft\\*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+REM Check Azul Zulu
+for /d %%d in ("%ProgramFiles%\\Zulu\\*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+REM Check Amazon Corretto
+for /d %%d in ("%ProgramFiles%\\Amazon Corretto\\*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+REM Check Oracle JDK/JRE newer locations
+for /d %%d in ("%ProgramFiles%\\Java\\jdk*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+for /d %%d in ("%ProgramFiles%\\Java\\jre*") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java at: %%d
+        goto :java_found
+    )
+)
+
+REM Check user-specific installations
+for /d %%d in ("%USERPROFILE%\\scoop\\apps\\openjdk*\\current") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java via Scoop: %%d
+        goto :java_found
+    )
+)
+
+REM Check Chocolatey installations
+for /d %%d in ("%ProgramData%\\chocolatey\\lib\\*jdk*\\tools") do (
+    if exist "%%d\\bin\\java.exe" (
+        set JAVA_CMD=%%d\\bin\\java.exe
+        echo Found Java via Chocolatey: %%d
+        goto :java_found
+    )
+)
+
+REM Try Windows Registry lookup as last resort
+echo Checking Windows Registry for Java...
+for /f "tokens=2*" %%a in ('reg query "HKLM\\SOFTWARE\\JavaSoft\\Java Runtime Environment" /s /v JavaHome 2^>nul ^| find "JavaHome"') do (
+    if exist "%%b\\bin\\java.exe" (
+        set JAVA_CMD=%%b\\bin\\java.exe
+        echo Found Java via Registry: %%b
+        goto :java_found
+    )
+)
+
+for /f "tokens=2*" %%a in ('reg query "HKLM\\SOFTWARE\\JavaSoft\\Java Development Kit" /s /v JavaHome 2^>nul ^| find "JavaHome"') do (
+    if exist "%%b\\bin\\java.exe" (
+        set JAVA_CMD=%%b\\bin\\java.exe
+        echo Found Java via Registry: %%b
         goto :java_found
     )
 )
