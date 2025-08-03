@@ -418,9 +418,55 @@ SABJAAAACAABAEoAAQBQAFIAAAAKAAEAUwBVAFcAGQ=="""
             launcher_script = runelite_dir / ("runelite_dev.cmd" if os.name == 'nt' else "runelite_dev.sh")
             
             if os.name == 'nt':
-                # Windows batch script with error handling and absolute paths
+                # Windows batch script with Java auto-detection
                 script_content = '''@echo off
 echo Starting RuneLite with Optimizer plugin in developer mode...
+echo.
+
+REM Find Java executable
+set JAVA_CMD=
+echo Looking for Java installation...
+
+REM Check if java is in PATH first
+where java >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    set JAVA_CMD=java
+    echo Found Java in PATH
+    goto :java_found
+)
+
+REM Check common Java installation locations
+for %%i in (
+    "%JAVA_HOME%\\bin\\java.exe"
+    "%ProgramFiles%\\Java\\jre*\\bin\\java.exe"
+    "%ProgramFiles%\\Java\\jdk*\\bin\\java.exe"
+    "%ProgramFiles(x86)%\\Java\\jre*\\bin\\java.exe"
+    "%ProgramFiles(x86)%\\Java\\jdk*\\bin\\java.exe"
+    "%ProgramFiles%\\Eclipse Adoptium\\jre*\\bin\\java.exe"
+    "%ProgramFiles%\\Eclipse Adoptium\\jdk*\\bin\\java.exe"
+    "%ProgramFiles%\\Microsoft\\jdk*\\bin\\java.exe"
+    "%ProgramFiles%\\Zulu\\zulu*\\bin\\java.exe"
+) do (
+    if exist "%%i" (
+        set JAVA_CMD=%%i
+        echo Found Java at: %%i
+        goto :java_found
+    )
+)
+
+echo ERROR: Java not found!
+echo.
+echo Please install Java ^(JRE or JDK^) and try again.
+echo You can download Java from:
+echo - https://www.oracle.com/java/technologies/downloads/
+echo - https://adoptium.net/
+echo.
+echo Or make sure Java is in your PATH environment variable.
+echo.
+pause
+exit /b 1
+
+:java_found
 echo.
 echo Classpath locations:
 echo - Repository: %~dp0repository2\\*
@@ -428,7 +474,7 @@ echo - Plugin: %~dp0plugins\\optimizer-1.0-SNAPSHOT.jar
 echo - Launcher: %~dp0launcher
 echo.
 
-java -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^
+"%JAVA_CMD%" -ea -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^
      -Dsun.java2d.opengl=false ^
      -Drunelite.pluginhub.url=https://repo.runelite.net/plugins ^
      --add-opens=java.desktop/sun.awt=ALL-UNNAMED ^
@@ -441,19 +487,21 @@ if %ERRORLEVEL% neq 0 (
     echo ERROR: Failed to launch RuneLite ^(Error code: %ERRORLEVEL%^)
     echo.
     echo Possible causes:
-    echo - Java is not installed or not in PATH
     echo - Required JAR files are missing: 
     echo   * %~dp0repository2\\*.jar
     echo   * %~dp0plugins\\optimizer-1.0-SNAPSHOT.jar  
     echo   * %~dp0launcher\\OptimizerLauncher.class
+    echo - Java version compatibility issue
     echo - Plugin file was removed too early
     echo.
     echo Current directory: %~dp0
+    echo Java command used: "%JAVA_CMD%"
     echo.
     echo Press any key to close this window...
     pause >nul
 ) else (
     echo RuneLite launched successfully!
+    echo You can now close this window.
 )
 '''
             else:
