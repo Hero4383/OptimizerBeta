@@ -427,7 +427,35 @@ REM Find Java executable
 set JAVA_CMD=
 echo Looking for Java installation...
 
-REM Check if java is in PATH first
+REM Check RuneLite bundled Java first (highest priority)
+echo Checking for RuneLite bundled Java...
+
+REM Common RuneLite installation locations with bundled Java
+for %%r in (
+    "%LOCALAPPDATA%\\RuneLite"
+    "%APPDATA%\\RuneLite"
+    "%ProgramFiles%\\RuneLite"
+    "%ProgramFiles(x86)%\\RuneLite"
+    "%USERPROFILE%\\AppData\\Local\\RuneLite"
+) do (
+    if exist "%%r\\jre\\bin\\java.exe" (
+        set JAVA_CMD=%%r\\jre\\bin\\java.exe
+        echo Found RuneLite bundled Java: %%r\\jre
+        goto :java_found
+    )
+    if exist "%%r\\runtime\\bin\\java.exe" (
+        set JAVA_CMD=%%r\\runtime\\bin\\java.exe
+        echo Found RuneLite bundled Java: %%r\\runtime
+        goto :java_found
+    )
+    if exist "%%r\\java\\bin\\java.exe" (
+        set JAVA_CMD=%%r\\java\\bin\\java.exe
+        echo Found RuneLite bundled Java: %%r\\java
+        goto :java_found
+    )
+)
+
+REM Check if java is in PATH
 where java >nul 2>nul
 if %ERRORLEVEL% equ 0 (
     set JAVA_CMD=java
@@ -435,7 +463,7 @@ if %ERRORLEVEL% equ 0 (
     goto :java_found
 )
 
-REM Check JAVA_HOME first
+REM Check JAVA_HOME
 if defined JAVA_HOME (
     if exist "%JAVA_HOME%\\bin\\java.exe" (
         set JAVA_CMD=%JAVA_HOME%\\bin\\java.exe
